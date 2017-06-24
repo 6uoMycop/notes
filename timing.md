@@ -230,6 +230,8 @@ main(int argc, char **argv)
 
 ### tsc
 The x86 "timestamp counter", or TSC, is a 64-bit register on each processor that increases monotonically. It increments once every CPU clock-cycle, starting from 0 when power is turned on. It won't overflow for at least ten years. Unprivileged programs (ring3) normally can access it via the `rdtsc` instruction.
+
+So how much time is one cycle? You can compute the cycle time by counting the number of cycles in a known time interval.
 ```C
 #ifndef TIMER_H_
 #define TIMER_H_
