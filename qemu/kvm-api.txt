@@ -1,0 +1,83 @@
+The Definitive KVM (Kernel-based Virtual Machine) API Documentation
+===================================================================
+
+1. File descriptors
+-------------------
+
+The kvm API is centered around file descriptors.  An initial
+open("/dev/kvm") obtains a handle to the kvm subsystem; this handle
+can be used to issue system ioctls.  A KVM_CREATE_VM ioctl on this
+handle will create a VM file descriptor which can be used to issue VM
+ioctls.  A KVM_CREATE_VCPU ioctl on a VM fd will create a virtual cpu
+and return a file descriptor pointing to it.  Finally, ioctls on a vcpu
+fd can be used to control the vcpu, including the important task of
+actually running guest code.
+
+In general file descriptors can be migrated among processes by means
+of fork() and the SCM_RIGHTS facility of unix domain socket.  These
+kinds of tricks are explicitly not supported by kvm.  While they will
+not cause harm to the host, their actual behavior is not guaranteed by
+the API.  The only supported use is one virtual machine per process,
+and one vcpu per thread.
+
+
+2. API description
+------------------
+
+This section describes ioctls that can be used to control kvm guests.
+For each ioctl, the following information is provided along with a
+description:
+
+  Parameters: what parameters are accepted by the ioctl.
+
+  Returns: the return value.  General error numbers (EBADF, ENOMEM, EINVAL)
+      are not detailed, but errors with specific meanings are.
+
+
+2.1 KVM_SET_USER_MEMORY_REGION
+
+Parameters: struct kvm_userspace_memory_region (in)
+Returns: 0 on success, -1 on error
+
+struct kvm_userspace_memory_region {
+	__u32 slot;
+	__u32 flags;
+	__u64 guest_phys_addr;
+	__u64 memory_size; /* bytes */
+	__u64 userspace_addr; /* start of the userspace allocated memory */
+};
+
+/* for kvm_memory_region::flags */
+#define KVM_MEM_LOG_DIRTY_PAGES	(1UL << 0)
+#define KVM_MEM_READONLY	(1UL << 1)
+
+This ioctl allows the user to create or modify a guest physical memory
+slot.
+
+Memory for the region is taken starting at the address denoted by the
+field userspace_addr, which must point at user addressable memory for
+the entire memory slot size.  Any object may back this memory, including
+anonymous memory, ordinary files, and hugetlbfs.
+
+The flags field supports two flags: KVM_MEM_LOG_DIRTY_PAGES and
+KVM_MEM_READONLY.  The former can be set to instruct KVM to keep track of
+writes to memory within the slot.
+
+
+2.2 KVM_GET_DIRTY_LOG (vm ioctl)
+
+Parameters: struct kvm_dirty_log (in/out)
+Returns: 0 on success, -1 on error
+
+/* for KVM_GET_DIRTY_LOG */
+struct kvm_dirty_log {
+	__u32 slot;
+	__u32 padding;
+	union {
+		void __user *dirty_bitmap; /* one bit per page */
+		__u64 padding;
+	};
+};
+
+Given a memory slot, return a bitmap containing any pages dirtied
+since the last call to this ioctl.

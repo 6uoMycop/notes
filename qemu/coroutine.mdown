@@ -1,0 +1,48 @@
+Creating and starting a coroutine is easy:
+```
+coroutine = qemu_coroutine_create(my_coroutine);
+qemu_coroutine_enter(coroutine, my_data);
+```
+The coroutine then executes until it returns or yields:
+```C
+void coroutine_fn my_coroutine(void *opaque) {
+    MyData *my_data = opaque;
+
+    /* do some work */
+
+    qemu_coroutine_yield();
+
+    /* do some more work */
+}
+```
+The yield function transfers control back to the caller of `qemu_coroutine_enter()`. The coroutine can be re-entered at a later point in time by calling `qemu_coroutine_enter()`, for example, when an I/O request has completed.
+```C
+/*
+ * Check that yield/enter transfer control correctly
+ */
+
+static void coroutine_fn yield_5_times(void *opaque)
+{
+    bool *done = opaque;
+    int i;
+
+    for (i = 0; i < 5; i++) {
+        qemu_coroutine_yield();
+    }
+    *done = true;
+}
+
+static void test_yield(void)
+{
+    Coroutine *coroutine;
+    bool done = false;
+    int i = -1; /* one extra time to return from coroutine */
+
+    coroutine = qemu_coroutine_create(yield_5_times);
+    while (!done) {
+        qemu_coroutine_enter(coroutine, &done);
+        i++;
+    }
+    g_assert_cmpint(i, ==, 5); /* coroutine must yield 5 times */
+}
+```

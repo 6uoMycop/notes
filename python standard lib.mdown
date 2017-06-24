@@ -1,0 +1,671 @@
+## Built-in Functions
+
+- `len(s)`<br>
+  Return the length (the number of items) of an object. The argument may be a sequence (such as a string) or a collection (such as a dictionary).
+
+- `map(function, iterable, ...)`<br>
+  Apply *function* to every item of *iterable* and return a list of the results.
+
+- `__import__(name,[, globals[, locals[, fromlist[, level]]]])`<br>
+  This function is invoked by the `import` statement to load a module. *name* is a string containing the module name and *fromlist* is a list of targets given to the `from` statement. For example, the statement `import spam` results in a call to `__import__('spam', globals(), locals(), [], -1)`, whereas the statement `from spam import foo` results in the call `__import__('spam', globals(), locals(), ['foo'], -1)`. Direct use of `__import__` is rare, except in cases where you want to import a module whose name is only known at runtime.
+
+## GENERIC OPERATING SYSTEM SERVICES
+### `os`
+This module provides a portable way of using operating system dependent functionality. The API for functions available on all platforms should be the same, so using the `os` module offers some measure of portability. Not all functions are available on every platform, however.
+
+#### Process Parameters
+- `os.environ`<br>
+  The mapping object `os.environ` contains environment variables. For example, to access the environment variable `PYTHONPATH`, you would use the expression `os.environ['PYTHONPATH']`.
+
+#### File Descriptor Operations
+`os` includes the standard set of functions for working with low-level *file descriptors* (integers representing open files owned by the current process).
+
+- `os.open(file, flags[, mode])`<br>
+  Open the file *file* and set various flags according to *flags* and possibly its mode according to *mode*.
+
+- `os.read(fd, n)`<br>
+  Read at most *n* bytes from file descriptor *fd*.
+
+- `os.write(fd, str)`<br>
+  Write the string *str* to file descriptor *fd*.
+
+- `os.fsync(fd)`<br>
+  Force write of file with filedescriptor *fd* to disk.
+
+  Availability: Unix, and Windows starting in 2.2.3.
+
+## STRING SERVICES
+### `re`
+*Regular expressions* are text-matching patterns described with a formal syntax.
+
+#### Module Contents
+- `re.search(pattern, string)`<br>
+  The `search()` function takes the pattern and text to scan, and returns a `Match` object when the pattern is found. If the pattern is not found, `search()` returns None.
+
+  Each `Match` object holds information about the nature of the match, including the original input string, the regular expression used, and the location within the original string where the pattern occurs.
+  ```Python
+  import re
+
+  pattern = 'this'
+  text = 'Does this text match the pattern?'
+
+  match = re.search(pattern, text)
+
+  s = match.start()
+  e = match.end()
+  print 'Found "%s"\nin "%s"\nfrom %d to %d ("%s")' % (match.re.pattern, match.string, s, e, text[s:e])
+  ```
+  The `start()` and `end()` methods give the indexes into the string showing where the text matched by the pattern occurs.
+  ```
+  $ python re_simple_match.py
+
+  Found "this"
+  in "Does this text match the pattern?"
+  from 5 to 9 ("this")
+  ```
+
+- `re.match(pattern, string)`<br>
+  If it is known in advance that only a subset of the full input should be searched, the regular expression match can be further constrained by telling `re` to limit the search range. For example, if the pattern must appear at the front of the input, then using `match()` instead of `search()` will anchor the search without having to explicitly include an anchor in the search pattern.
+  ```Python
+  import re
+
+  text = 'This is some text -- with punctuation.'
+  pattern = 'is'
+
+  print 'Text :', text
+  print 'Pattern:', pattern
+
+  m = re.match(pattern, text)
+  print 'Match :', m
+  ```
+  Since the literal text `is` does not appear at the start of the input text, it is not found using `match()`.
+  ```
+  $ python re_match.py
+
+  Text   : This is some text -- with punctuation.
+  Pattern: is
+  Match  : None
+  ```
+
+- `re.sub(pattern, repl, string, count=0)`<br>
+  If *count=0* or omitted, replace all occurrences of a pattern with another string.
+
+- `re.compile(pattern)`<br>
+  Compile a regular expression pattern into a regular expression object.
+
+  The sequence
+  ```
+  prog = re.compile(pattern)
+  result = prog.match(string)
+  ```
+  is equivalent to
+  ```
+  result = re.match(pattern, string)
+  ```
+
+#### Regular Expression Objects
+Regular expression objects support the following methods:
+
+- `match(string)`<br>
+  If zero or more characters at the *beginning of string* match this regular expression, return a corresponding Match instance.
+
+- `sub(repl, string)`<br>
+  Identical to the `re.sub(pattern, repl, string, count=0)` function, using the compiled pattern.
+  ```Python
+  import re
+
+  bold = re.compile(r'\*{2}(.*?)\*{2}')
+
+  text = 'Make this **bold**. This **too**.'
+
+  print 'Text:', text
+  print 'Bold:', bold.sub(r'<b>\1</b>', text)
+  ```
+  ```
+  $ python re_sub.py
+
+  Text: Make this **bold**. This **too**.
+  Bold: Make this <b>bold</b>. This <b>too</b>.
+  ```
+
+#### Match Objects
+Match objects support the following methods:
+
+- `group([group1, ... ])`<br>
+  If a *groupN* argument is zero, the corresponding return value is the entire matching string; if it is in the inclusive range [1..99], it is the string matching the corresponding parenthesized group.
+  ```Python
+  import re
+
+  text = 'This is some text -- with punctuation.'
+
+  print 'Input text            :', text
+
+  # word starting with 't' then another word
+  regex = re.compile(r'(\bt\w+)\W+(\w+)')
+  print 'Pattern               :', regex.pattern
+
+  match = regex.search(text)
+  print 'Entire match          :', match.group(0)
+  print 'Word starting with "t":', match.group(1) # The first parenthesized subgroup.
+  print 'Word after "t" word   :', match.group(2)
+  ```
+  ```
+  $ python re_groups_individual.py
+
+  Input text            : This is some text -- with punctuation.
+  Pattern               : (\bt\w+)\W+(\w+)
+  Entire match          : text -- with
+  Word starting with "t": text
+  Word after "t" word   : with
+  ```
+
+## FILE AND DIRECTORY ACCESS
+### `os.path`
+This module implements some useful functions on pathnames.
+
+- `os.path.abspath(path)`<br>
+  To convert a relative path to an absolute filename, use abspath().
+  ```Python
+  import os
+  import os.path
+
+  os.chdir('/tmp')
+
+  for path in ['./one/two/three', '../one/two/three']:
+      print '%17s : "%s"' % (path, os.path.abspath(path))
+  ```
+  The result is a complete path, starting at the top of the file system tree.
+  ```
+  $ python ospath_abspath.py
+    ./one/two/three : "/private/tmp/one/two/three"
+   ../one/two/three : "/private/one/two/three"
+  ```
+
+- `os.path.split(path)`<br>
+  Split the pathname *path* into a pair, `(head, tail)` where *tail* is the last pathname component and *head* is everything leading up to that. The *tail* part will never contain a slash; if *path* ends in a slash, *tail* will be empty.
+  ```Python
+  import os
+
+  for path in ['/one/two/three', '/one/two/three/']:
+      print '%15s : %s' % (path, os.path.abspath(path))
+  ```
+  ```
+  $ python ospath_split.py
+   /one/two/three : ('/one/two/', 'three')
+  /one/two/three/ : ('/one/two/three', '')
+  ```
+
+- `os.path.basename(path)`<br>
+  Return the base name of pathname *path*. This is the second element of the pair returned by passing *path* to the function `split()`.
+  ```Python
+  import os
+
+  for path in ['/one/two/three', '/one/two/three/']:
+      print '%15s : %s' % (path, os.path.basename(path))
+  ```
+  ```
+  $ python ospath_basename.py
+   /one/two/three : three
+  /one/two/three/ :
+  ```
+
+- `os.path.isfile(path)`<br>
+  Return `True` if *path* is an existing regular file.
+
+- `os.path.isdir(path)`<br>
+  Return `True` if *path* is an existing directory.
+
+- `os.path.splitext(path)`<br>
+  `splitext()` works like `split()`, but divides the path on the extension separator, rather than the directory separator.
+  ```Python
+  import os.path
+
+  for path in ['filename.txt', 'filename', '/path/to/filename.txt']:
+      print '%21s :' % path, os.path.splitext(path)
+  ```
+  ```
+  $ python ospath_splitext.py
+           filename.txt : (’filename’, ’.txt’)
+               filename : (’filename’, ’’)
+  /path/to/filename.txt : ('/path/to/filename', '.txt')
+  ```
+
+- `os.path.join()`<br>
+  To combine several path components into a single value, use `join()`.
+  ```Python
+  import os.path
+
+  for parts in [('one', 'two', 'three'), ('/', 'one', 'two', 'three'), ('/one', '/two', '/three')]:
+      print parts, ':', os.path.join(*parts)
+  ```
+  If a component is an absolute path, all previous components are thrown away and joining continues from the absolute path component.
+  ```
+  $ python ospath_join.py
+  ('one', 'two', 'three') : one/two/three
+  ('/', 'one', 'two', 'three') : /one/two/three
+  ('/one', '/two', '/three') : /three
+  ```
+
+## FILE FORMATS
+### `ConfigParser`
+Use the `ConfigParser` module to manage user-editable configuration files for an application.
+
+The configuration file consists of sections, led by a `[section]` header and followed by `name=value` entries.
+
+Default values can be specified by passing them into the `ConfigParser` constructor as a dictionary.
+
+- `class ConfigParser.ConfigParser([defaults])`
+  The configuration file:
+  ```
+  [memcached]
+  DEBUG_MODE=WITH_DEBUG
+  SERVER_COUNT=1
+  ```
+  ```Python
+  import ConfigParser
+
+  option_names = ["DEBUG_MODE", "SERVER_COUNT", "SLEEP_TIME"]
+
+  parser = ConfigParser.ConfigParser({"DEBUG_MODE":"WITHOUT_DEBUG", "SERVER_COUNT":"1", "SLEEP_TIME":"5"})
+  parser.read('memcached-tiny.cfg')
+
+  # Show the values of all the options
+  for name in option_names:
+      value = parser.get('memcached', name)
+      print ' %-15s = %r' % (name, value)
+  ```
+  This test program includes default settings for options not specified in the configuration file.
+  ```
+  DEBUG_MODE      = 'WITH_DEBUG'
+  SERVER_COUNT    = '1'
+  SLEEP_TIME      = '5'
+  ```
+
+#### ConfigParser Objects
+- `ConfigParser.read(filenames)`<br>
+  Use the `read()` method to read the configuration file.
+
+- `ConfigParser.get(section, option[, raw])`<br>
+  Get an *option* value for the named *section*.
+
+  All the `'%'` interpolations are expanded in the return values, unless the *raw* argument is true.
+  ```Python
+  import ConfigParser
+
+  parser = ConfigParser.ConfigParser()
+  parser.read('interpolation.ini')
+
+  print 'Original value :', parser.get('bug_tracker', 'url')
+
+  print 'Without interpolation:', parser.get('bug_tracker', 'url', raw=True)
+  ```
+  ```
+  $ ConfigParser_interpolation.py
+  Original value : http://localhost:8080/bugs/
+  Without interpolation: %(protocol)s://%(server)s:%(port)s/bugs/
+  ```
+
+- `ConfigParser.sections()`<br>
+  Return a list of the sections available.
+
+## GENERIC OPERATING SYSTEM SERVICES
+### `logging`
+The basic classes defined by the module, together with their functions, are listed below.
+- Loggers expose the interface that application code directly uses.
+- Handlers send the log records (created by loggers) to the appropriate destination.
+- Formatters specify the layout of log records in the final output.
+
+#### Logger Objects
+- `Logger.setLevel(lvl)`<br>
+  Sets the threshold for this logger to *lvl*.
+
+- `Logger.addHandler(hdlr)`<br>
+  Adds the specified handler *hdlr* to this logger.
+
+- `Logger.warning(msg)`<br>
+  Logs a message with level `WARNING` on this logger.
+
+#### Handler Objects
+- `Handler.setLevel(lvl)`<br>
+  Sets the threshold for this handler to *lvl*.
+
+- `Handler.setFormatter(form)`<br>
+  Sets the Formatter for this handler to *form*.
+
+#### Formatter Objects
+- `class logging.Formatter(fmt=None, datefmt=None)`<br>
+  Returns a new instance of the Formatter class. The instance is initialized with a format string for the message as a whole, as well as a format string for the date/time portion of a message.
+
+#### Module-Level Functions
+- `logging.getLogger([name])`<br>
+  Return a logger with the specified name or, if no name is specified, return a logger which is the root logger of the hierarchy.
+
+- `logging.warning(msg)`<br>
+  Logs a message with level `WARNING` on the root logger. The *msg* is the message format string.
+
+- `logging.critical(msg)`<br>
+  Logs a message with level `CRITICAL` on the root logger.
+
+- `logging.debug(msg)`<br>
+  Logs a message with level `DEBUG` on the root logger.
+
+### logging.handlers
+#### StreamHandler
+The StreamHandler class sends logging output to streams such as *sys.stdout*, *sys.stderr*.
+
+- `class logging.StreamHandler(stream=None)`<br>
+  Returns a new instance of the StreamHandler class. If *stream* is not specified, the instance will use *sys.stderr* for logging output.
+
+#### SocketHandler
+The SocketHandler class sends logging output to a network socket.
+
+### `argparse`
+The `argparse` module makes it easy to write user-friendly command-line interfaces. The program defines what arguments it requires, and `argparse` will figure out how to parse those out of `sys.argv`.
+
+**Setting Up a Parser**
+
+The first step in using the argparse is creating an ArgumentParser object:
+```
+import argparse
+parser = argparse.ArgumentParser(description='This is a PyMOTW sample program',)
+```
+
+**Defining Arguments**
+
+`add_argument()` define how a single command-line argument should be parsed.
+
+**Parsing a Command Line**
+
+After all the arguments are defined, parse the command line by passing a sequence of argument strings to `parse_args()`.
+
+The return value from `parse_args()` is a `Namespace` containing the arguments to the command. The object holds the argument values as attributes, so if the argument's `dest` is set to "myoption", the value is accessible as `args.myoption`.
+
+**Simple Examples**
+
+Here is a simple example with three different options: a Boolean option (`-a`), a simple string option (`-b`), and an integer option (`-c`).
+
+```Python
+import argparse
+
+parser = argparse.ArgumentParser(description='Short sample app')
+
+parser.add_argument('-a', action="store_true", default=False)
+parser.add_argument('-b', action="store", dest="b")
+parser.add_argument('-c', action="store", dest="c", type=int)
+
+print parser.parse_args(['-a', '-bval, '-c', '3'])
+```
+There are a few ways to pass values to single-character options. The previous example uses two different forms, `-bval` and `-c val`.
+```
+$ python argparse_short.py
+
+Namespace(a=True, b='val', c=3)
+```
+The type of the value associated with `'c'` in the output is an integer, since the `ArgumentParser` was told to convert the argument before storing it.
+
+"Long" option names, with more than a single character in their name, are handled in the same way.
+```Python
+import argparse
+
+parser = argparse.ArgumentParser(description='Example with long option names',)
+
+parser.add_argument('--noarg', action="store_true", default=False)
+parser.add_argument('--witharg', action="store",dest="witharg")
+parser.add_argument('--witharg2', action="store",dest="witharg2", type=int)
+
+print parser.parse_args(['--noarg', '--witharg', 'val', '--witharg2=3'])
+```
+The results are similar.
+```
+$ python argparse_long.py
+
+Namespace(noarg=True, witharg='val', witharg2=3)
+```
+Six built-in actions can be triggered when an argument is encountered.
+- **store** Save the value, after optionally converting it to a different type. This is the default action taken if none is specified explicitly.
+- **store_true / store_false** Save the appropriate Boolean value.
+
+## Optional Operating System Services
+### `threading`
+This module defines the following functions and objects:
+
+- `threading.Lock()`<br>
+  A factory function that returns a new primitive lock object.
+
+- `class threading.Thread`<br>
+  A class that represents a thread of control.
+
+#### Thread Objects
+
+This class represents an activity that is run in a separate thread of control. There are two ways to specify the activity: by passing a callable object to the constructor.
+
+Once a thread object is created, its activity must be started by calling the thread's `start()` method. This invokes the `run()` method in a separate thread of control.
+
+Other threads can call a thread's `join()` method. This blocks the calling thread until the thread whose `join()` method is called is terminated.
+
+- `class threading.Thread(target=None, args=())`<br>
+  Arguments are:
+
+  *target* is the callable object to be invoked by the `run()` method.
+
+  *args* is the argument tuple for the target invocation.
+
+  - `start()`<br>
+    Start the thread's activity.
+
+    It arranges for the object's `run()` method to be invoked in a separate thread of control.
+
+  - `run()`
+    The standard `run()` method invokes the callable object passed to the object's constructor as the *target* argument.
+
+#### Lock Objects
+
+- `Lock.acquire()`<br>
+  Acquire a lock.
+
+- `Lock.release()`<br>
+  Release a lock.
+
+### `multiprocessing`
+`multiprocessing` is a package that supports spawning processes using an API similar to the `threading` module. 
+
+In `multiprocessing`, processes are spawned by creating a `Process` object and then calling its `start()` method. A trivial example of a multiprocess program is:
+```Python
+from multiprocessing import Process
+
+def f(name):
+    print 'hello', name
+
+if __name__ == '__main__':
+    p = Process(target=f, args=('bob',))
+    p.start()
+    p.join()
+```
+
+## INTERPROCESS COMMUNICATION AND NETWORKING
+### `subprocess`
+The `subprocess` module allows you to spawn new processes, connect to their input/output/error pipes, and obtain their return codes.
+
+#### Using the subprocess Module
+- `class subprocess.Popen(args, bufsize=0, executable=None, stdout=None, stderr=None, shell=False)`<br>
+  Execute a child program in a new process. On Unix, the class uses `os.execvp()`-like behavior to execute the child program.
+
+  The *shell* argument specifies whether to use the shell as the program to execute.
+
+  On Unix with `shell=True`, the shell defaults to `/bin/sh`. If *args* is a string, the string specifies the command to execute through the shell. This means that the string must be formatted exactly as it would be when typed at the shell prompt.
+
+  *stdout* and *stderr* specify the executed program's standard standard output and standard error file handles, respectively.
+
+  *bufsize*, if given, has the same meaning as the corresponding argument to the built-in open() function.
+
+  The *executable* argument specifies a replacement program to execute. If `shell=True`, on Unix the *executable* argument specifies a replacement shell for the default `/bin/sh`.
+
+  *stdout* and *stderr* specify the executed program's standard output and standard error file handles, respectively. Valid values are `PIPE`, an existing file object, and `None`. To direct the error output from the process to its standard output channel, use `subprocess.STDOUT` for *stderr*.
+
+##### Popen Objects
+Instances of the `Popen` class have the following methods:
+
+- `Popen.wait()`<br>
+  Wait for child process to terminate.
+
+### `socket`
+The module socket exports the following constants and functions:
+- `socket.AF_INET`
+- `socket.AF_INET6`<br>
+  These constants represent the address (and protocol) families, used for the first argument to `socket()`.
+
+- `socket.SOCK_STREAM`
+- `socket.SOCK_DGRAM`<br>
+  These constants represent the socket types, used for the second argument to `socket()`.
+
+- `socket.socket([family [, type[, proto]]])`<br>
+  Create a new socket using the given address family, socket type and protocol number.
+
+#### Socket Objects
+Socket objects have the following methods.
+
+- `socket.accept()`<br>
+  Accept a connection. The return value is a pair `(conn, address)` where *conn* is a new socket object usable to send and receive data on the connection, and *address* is the address bound to the socket on the other end of the connection.
+
+- `socket.bind(address)`<br>
+  Bind the socket to *address*.
+
+- `socket.close()`<br>
+  Close the socket.
+
+- `socket.connect(address)`<br>
+  Connect to a remote socket at *address*.
+
+- socket.recv(bufsize)<br>
+  Receive data from the socket. The return value is a string representing the data received. The maximum amount of data to be received at once is specified by *bufsize*.
+
+- `socket.send(string)`<br>
+  Send data to the socket. Returns the number of bytes sent.
+
+#### Example
+Here are four minimal example programs using the TCP/IP protocol: a server that echoes all data that it receives back (servicing only one client), and a client using it. Note that a server must perform the sequence `socket()`, `bind()`, `listen()`, `accept()` (possibly repeating the `accept()` to service more than one client), while a client only needs the sequence `socket()`, `connect()`.
+```Python
+# Echo server program
+import socket
+
+HOST = ''              # Symbolic name meaning all available interfaces
+PORT = 50007 
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((HOST, PORT))
+s.listen(1)
+conn, addr = s.accept()
+print 'Connected by', addr
+while 1:
+    data = conn.recv(1024)
+    if not data: break;
+    conn.sendall(data)
+conn.close()
+```
+```Python
+# Echo client program
+import socket
+HOST = 'daring.cwi.nl' # he remote host
+PORT = 50007 
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect((HOST, PORT))
+s.sendall('Hello, world')
+data = s.recv(1024)
+s.close()
+print 'Received', repr(data)
+```
+
+## Built-in Types
+### Sequence Types
+#### String Methods
+
+- `str.join(y)`<br>
+  Called on a "separator" string `'x'`, `'x'.join(y)` joins every element in the list `y` separated by `'x'`.
+  ```
+  >>> mwords
+  ['Mary', 'had', 'a', 'little', 'lamb']
+  >>> ' '.join(mwords)
+  'Mary had a little lamb'
+  ```
+  words in `mwords` are joined back into the sentence string with a space in between.
+
+- `str.split([sep])`<br>
+  Return a list of the words in the string, using *sep* as the delimiter string.
+  ```
+  >>> mary = 'Mary had a little lamb'
+  >>> mary.split()
+  ['Mary', 'had', 'a', 'little', 'lamb']
+  >>> mary.split('a') # splits on 'a'
+  ['M', 'ry h', 'd ', ' little l', 'mb']
+  ```
+
+- `str.replace(old, new)`<br>
+  Return a copy of the string with all occurrences of substring *old* replaced by *new*.
+  ```
+  >>> str = "this is string example....wow!!! this is really string"
+  >>> print str.replace("is", "was");
+  thwas was string example....wow!!! thwas was really string
+  ```
+
+- `str.startswith(prefix)`<br>
+  - Return `True` if string starts with the *prefix*, otherwise return `False`.
+
+## Data Types
+### datetime
+The `datetime` module supplies classes for manipulating dates and times in both simple and complex ways.
+
+#### Available Types
+- `class datetime.time`<br>
+  A `time` instance has attributes for `hour`, `minute`, `second`, and `microsecond`.
+
+- `class datetime.date`<br>
+  Instances have attributes for `year`,`month` , and `day`.
+
+- `class datetime.datetime`<br>
+  A combination of a date and a time.
+
+#### datetime Objects
+Constructor:
+- `class datetime.datetime(year, month, day[, hour[, minute[, second[, microsecond]]]])`
+  The year, month and day arguments are required.
+
+Other constructors, all class methods:
+- `classmethod datetime.today()`
+  Return the current local datetime.
+
+#### `strftime()` and `strptime()` Behavior
+`date`, `datetime`, and `time` objects all support a `strftime(format)` method, to create a string representing the time under the control of an explicit format string.
+
+Conversely, the `datetime.strptime()` class method creates a `datetime` object from a string representing a date and time and a corresponding format string.
+
+Directive | Meaning | Example
+------------ | ------------- | -------------
+`%a` | Weekday as locale's abbreviated name. | Sun, Mon, ..., Sat
+`%b` | Month as locale's abbreviated name. | Jan, Feb, ..., Dec
+`%d` | Day of the month as a zero-padded decimal number. | 01, 02, ..., 31
+`%H` | Hour (24-hour clock) as a zero-padded decimal number. | 00, 01, ..., 23
+`%M` | Minute as a zero-padded decimal number. | 00, 01, ..., 59
+`%S` | Second as a zero-padded decimal number. | 00, 01, ..., 59
+`%Y` | Year with century as a decimal number. | 1970, 1988, 2001, 2013
+
+```Python
+import datetime
+
+format = "%a %b %c %d %H:%M:%S %Y"
+
+today = datetime.datetime.today()
+
+print 'ISO     :', today
+
+s = today.strftime(format)
+print 'strftime:', s
+
+d = datetime.datetime.strptime(s, format)
+print 'strptime:', d.strftime(format)
+```
+```
+$ python datetime_datetime_strptime.py
+
+ISO     : 2010-11-27 11:20:10.571582
+strftime: Sat Nov 27 11:20:10 2010
+strptime: Sat Nov 27 11:20:10 2010
+```

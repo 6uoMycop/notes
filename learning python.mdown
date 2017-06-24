@@ -1,0 +1,481 @@
+## Types and Operations
+### String Fundamentals
+#### String Literals
+##### Single- and Double-Quoted Strings are the same
+Around Python string, single- and double-quote characters are interchangeable. That is, string literals can be written enclosed in either two single or two double quotes - the two forms work the same and return the same type of object.
+
+#### Strings in Action
+##### Basic Operations
+You can concatenate strings using the `+` operator.
+```
+>>> len('abc')
+3
+>>> 'abc' + 'def'
+'abcdef'
+```
+The `len` built-in function here returns the length of s string. Formally, adding two string objects with `+` creates a new string object, with the contents of its operands joined.
+
+##### String Conversion Tools
+```
+>>> int("42"), str(42)
+(42, '42')
+```
+The `int` function converts a string to a number, and the `str` function converts a number to its string representation.
+
+#### String Formatting Expressions
+string formatting is available in two flavors in Python today:
+- *String formatting expressions*: `'...%s...' % (values)`
+- *String formatting method calls*: `'...{}...'.format(values)`
+
+##### Formatting Expression Basics
+To format strings:
+1. On the *left* of the `%` operator, provide a format string containing one or more embedded conversion targets, each of which starts with a `%` (e.g., `%d`).
+2. On the *right* of the `%` operator, provide the object (or objects, embedded in a tuple) that you want Python to insert into the format string on the left in place of the conversion target (or targets).
+
+For instance, the integer 1 replaces the `%d` in the format string on the left, and the string `'dead'` replaces the `%s`. The result is a new string that reflects these two substitutions, which may be printed or saved for use in other roles:
+```
+>>> 'That is %d %s bird!' % (1, 'dead')
+'That is 1 dead bird!'
+```
+#### String Formatting Method Calls
+The string object's `format` method is based on normal function call syntax, instead of an expression.
+
+Within the subject string, curly braces designate substitution targets and arguments to be inserted by position (e.g., `{1}`).
+```
+>>> template = '{0}, {1} and {2}'
+>>> template.format('spam', 'ham', 'eggs')
+'spam, ham and eggs'
+```
+
+### Lists and Dictionaries
+#### Lists
+Lists are Python's most flexible ordered collection object type. Unlike strings, lists can contain any sort of object: numbers, strings and even other lists.
+
+Operation | Interpretation
+------------ | -------------
+`L = []` | An empty list
+`L = [123, 'abc', 1.23]` |
+
+#### Lists in Action
+##### Indexing, Slicing, and Matrixes
+```
+>>> L = ['spam', 'Spam', 'SPAM!']
+>>> L[2] # Offsets start at zero
+'SPAM!'
+```
+##### Changing Lists in Place
+Because lists are mutable, they support operations that change a list object *in place*. That is, the operations in this section all modify the list object directly - overwriting its former value - without requiring that you make a new copy, as you had to for strings.
+
+###### List method calls
+```
+>>> L = ['eat', 'more', 'SPAM!']
+>>> L.append('please')
+>>> L
+['eat', 'more', 'SPAM!', 'please']
+```
+Perhaps the most commonly used list method is `append`, which simply tacks a single item (object reference) onto the end of the list.
+
+#### Dictionaries
+
+Operation | Interpretation
+------------ | -------------
+`D={}` | Empty dictionary
+`D = {'name': 'Bob', 'age': 40}` | Two-item dictionary
+`E = {'cto': {'name': 'Bob', 'age': 40}}` | Nesting
+
+#### Dictionaries in Action
+##### Changing Dictionaries in Place
+```
+>>> D
+{'eggs': 3, 'ham': 2, 'spam': 1}
+>>> D['ham'] = {'grill': 4, 'bake': 5}
+{'eggs': 3, 'ham': {'grill': 4, 'bake': 5}, 'spam': 1}
+```
+
+### Tuples, Files, and Everything Else
+#### Tuples
+The last collection type in our survey is the Python tuple. Tuples construct simple groups of objects. They work exactly like lists, except that tuples can't be changed in place (they're immutable) and are usually written as a series of items in parentheses, not square brackets.
+
+Operation | Interpretation
+------------ | -------------
+`()` | An empty tuple
+`T = (0,)` | A one-item tuple
+`T = (0, 'Ni', 1.2, 3)` | A four-item tuple
+
+#### Files
+You may already be familiar with the notion of files, which are named storage compartments on your computer that are managed by your operating system. The last major built-in type that we'll examine on our object types tour provides a way to access those files inside Python programs.
+
+In short, the built-in `open` function creates a Python file object, which serves as a link to a file residing on your machine. After calling `open`, you can transfer strings of data to and from the associated external file by calling the returned file object's methods.
+
+##### Opening Files
+To open a file, a program calls the built-in `open` function, with the external filename first, followed by a processing mode. The call returns a file object, which in turn has methods for data transfer:
+```
+afile = open(filename, mode)
+afile.method()
+```
+Both of the first two arguments to `open` must be Python strings. An optional third argument can be used to control output *buffering*.
+
+> Note: `afile.flush()` does not necessarily write the file's data to disk. Use `flush()` followed by `os.fsync()` to ensure this behavior.
+
+##### Files in Action
+Let's work through a simple example that demonstrates file-processing basics. The following code begins by opening a new text file for output, writing two lines (strings terminated with a newline marker, `\n`), and closing the file. Later, the example opens the same file again in input mode and reads the lines back one at a time with `readline`. Notice that the third `readline` call returns an empty string; this is how Python file methods tell you that you’ve reached the end of the file. Here's the complete interaction:
+```
+>>> myfile = open('myfile.txt', 'w')
+>>> myfile.write('hello text file\n')
+>>> myfile.write('goodbye text file\n')
+18
+>>> myfile.close()
+
+>>> myfile = open('myfile.txt')
+>>> myfile.readline()
+'hello text file\n'
+>>> myfile.readline()
+'goodbye text file\n'
+>>> myfile.readline()
+''
+```
+This example writes each line of text, including its end-of-line terminator, `\n` , as a string; write methods don't add the end-of-line character for us, so we must include it to properly terminate our lines (otherwise the next write will simply extend the current line in the file).
+
+## Functions
+### Scopes
+#### Scope Rules
+functions define a *local scope*, and modules define a *global scope*. The two scopes are related as follows:
+- **The enclosing module is a global scope.** 
+- **Each call to a function creates a new local scope.**
+
+#### Name Resolution: The LEGB Rule
+
+```
+--------------------------------------------------------------------------------
+| Built-in (Python)                                                             |
+| Names preassigned in the built-in names module: open, range,                  |
+| SyntaxError...                                                                |
+|    -----------------------------------------------------------------------    |
+|   | Global (Module)                                                       |   |
+|   | Names assigned at the top-level of a module file, or declared         |   |
+|   | global in a def within the file.                                      |   |
+|   |     ---------------------------------------------------------------   |   |
+|   |    | Enclosing function locals                                     |  |   |
+|   |    | Names in the local scope of any and all enclosing functions   |  |   |
+|   |    | (def or lambda), from inner to outer.                         |  |   |
+|   |    |     -------------------------------------------------------|  |  |   |
+|   |    |    | Local (function)                                      |  |  |   |
+|   |    |    | Names assigned in any way within a function (def      |  |  |   |
+|   |    |    | or lambda), and not declared global in that function. |  |  |   |
+|   |    |     -------------------------------------------------------   |  |   |
+|   |     ---------------------------------------------------------------   |   |
+|    -----------------------------------------------------------------------    |
+--------------------------------------------------------------------------------
+```
+
+```Python
+class MyClass:
+    def foo(self, arg):
+        x = 1
+        print locals()
+
+if __name__ == '__main__':
+    for k, v in globals().items(): # names assigned in the global scope
+        print k, "=", v
+
+    myInstance = MyClass()
+    myInstance.foo(7)
+    myInstance.foo('bar')
+```
+
+```
+$ python scope.py
+__builtins__ = <module '__builtin__' (built-in)>
+__file__ = test.py
+__package__ = None
+MyClass = __main__.MyClass
+__name__ = __main__
+__doc__ = None
+{'x': 1, 'self': <__main__.MyClass instance at 0x10186bbd8>, 'arg': 7}
+{'x': 1, 'self': <__main__.MyClass instance at 0x10186bbd8>, 'arg': 'bar'}
+```
+
+## Statements and Syntax
+### while and for Loops
+#### Loop Coding Techniques
+##### Counter Loops: range
+Our first loop-related function, `range`, is really a general tools that can be used in a variety contexts. Although it's used most often to generate indexes in a `for`, you can use it anywhere you need a series of integers.
+```
+>>> range(5), range(2,5)
+([0, 1, 2, 3, 4], [2, 3, 4])
+```
+With one argument, `range` generates a list of integers from zero up to but not including
+the argument's value. If you pass in two arguments, the first is taken as the lower bound.
+
+## Functions and Generators
+### Advanced Function Topics
+#### Functional Programming Tools
+##### Mapping Functions over Iterables: map
+The `map` function applies a passed-in function to each item in an iterable object and returns a list containing all the function call results. For example:
+```
+>>> counters = [1, 2, 3, 4]
+>>> def inc(x): return x + 10
+>>> list(map(inc, counters))
+[11, 12, 13, 14]
+```
+
+## Modules and Packages
+### Modules: The Big Picture
+#### Python Program Architecture
+##### Imports and Attributes
+The file *a.py* is chosen to be the top-level file; it will be a simple text file of statements, which is executed from top to bottom when launched. The files *b.py* and *c.py* are modules; they are simple text files of statements as well, but they are not usually launched directly. Instead, as explained previously, modules are normally imported by other files that wish to use the tools the modules define.
+
+For instance, suppose the file *b.py* defines a function called `spam`, for external use. *b.py* will contain a Python `def` statement to generate the function, which you can later run by passing zero or more values in parentheses after the function's name:
+```
+def spam(text):
+    print(text, 'spam')
+```
+Now, suppose *a.py* wants to use *spam*. To this end, it might contain Python statements such as the following:
+```
+import b
+b.spam('gumby')
+```
+The first of these, a Python `import` statement, gives the file *a.py* access to everything defined by top-level code in the file *b.py*. The code `import b` roughly means:
+
+> Load the file *b.py* (unless it's already loaded), and give me access to all its attributes through the name `b`.
+
+To satisfy such goals, `import` statements execute and load other files on request. More formally, in Python, cross-file module linking is not resolved until such `import` statements are executed at runtime; their net effect is to assign module names - simple variables like `b` - to loaded module objects. In fact, the module name used in an `import` statement serves two purposes: it identifies the external file *file* to be loaded, but it also becomes a *variable* assigned to the loaded module.
+
+Similarly, objects *defined* by a module are also created at runtime, as the `import` is executing: `import` literally runs statements in the target file one at a time to create its contents. Along the way, every name assigned at the top-level of the file becomes an attribute of the module, accessible to importers. For example, the second of the statement in a *a.py* calls the function `spam` defined in the module `b` - created by running its `def` statement during the import - using object attribute notation. The code `b.spam` means:
+
+> Fetch the value of the name `spam` that lives within the object `b`.
+
+As we've seen, the `object.attribute` notation appears throughout Python code - most objects have useful attributes that are fetched with `"."` operator. Some reference callable objects like functions that take action, and others are simple data values that denote more static objects and properties.
+
+The notion of importing is also completely general throughout Python. Any file can import tools from ant other file. For instance, the file *a.py* may import *b.py* to call its function, but *b.py* might also import *c.py* to leverage different tools defined there. Import chains can go as deep as you like: in this example, the module `a` can import `b`, which can import `c`, which can import `b` again, and so on.
+
+Besides serving as the highest organizational structure, modules are also the highest level of code reuse in Python. Coding components in module files makes them useful in your original program, and in any other programs you may write later. For instance, if after coding the program we discover that the function `b.spam` is a general-purpose tool, we can reuse it in a completely different program; all we have to do is import the file *b.py* again from the other program's files
+
+##### Standard Library Modules
+Some of the modules that your programs will import are provided by Python itself and are not files you will code.
+
+Python automatically comes with a large collection of utility modules known as the *standard library*.
+
+#### How Imports Work
+They are really runtime operations that perform three distinct steps the first time a program imports a given file:
+1. *Find* the module's file.
+2. *Compile* it to byte code (if needed).
+3. *Run* the module's code to build the objects it defines.
+
+Bear in mind that all three of these steps are carried out only the *first time* a module is imported during a program's execution; later imports of the same module in program run bypass all of these steps and simply fetch the already loaded module object in memory.
+
+##### 1. Find It
+First, Python must locate the module file referenced by an import statement. Notice that the import statement in the prior section's example names the file without *a.py* extension and without its directory path.
+
+##### 2. Compile It (Maybe)
+After finding a source code file that matches an `import` statement by traversing the modules search path, Python next compiles it to byte code, if necessary. During an import operation Python checks both file modification times and the byte code's Python version number to decide how to proceed.
+
+- *Compile*
+  - If the byte code file is older than the source file (i.e., if you've changed the source) or was created by a different Python version, Python automatically regenerates the byte code when the program is run.
+- *Don't compile*
+  - If, on the other hand, Python finds a *.pyc* code file that is *not older* than the corresponding *.py* source file and was created by the same Python version, it skips the source-to-byte-code compile step.
+
+Notice that compilation happens when a file is being imported. Because of this, you will not usually see a *.pyc* byte code for the *top-level* file of your program, unless it is also imported elsewhere - only imported files leave behind *.pyc* files on your machine. The byte code of top-level files is used internally and discarded; byte code of imported files is saved in files to speed future imports.
+
+##### 2. Run It
+The final step of an import operation executes the byte code of the module. All statements in the file are run in turn, from top to bottom, and any assignments made to names during this step generate attributes of the resulting module object. This is how the tools defined by the module's code are created. For instance, `def` statements in a file are run at import time to create functions and assign attributes within the module to those functions. The functions can then be called later in the program by the file's importers.
+
+Because this last import step actually runs the file's code, if any top-level code in a module file does real work, you’ll see its results at import time. For example, top-level `print` statements in a module show output when the file is imported. Function `def` statements simply define objects for later use.
+
+### Module Coding Basics
+#### Module Creation
+To define a module, simply use your text editor to type some Python code into a text file, and save it with a ".py" extension; any such file is automatically considered a Python module. All the names assigned at the top level of the module becomes its *attributes* (names associated with the module object) and are exported for clients to use - they morph from variable to module object attribute automatically.
+
+### Module Usage
+Clients can use the simple module file we just wrote by running an `import` or `from` statement. Both statements find, compile, and run a module file's code, if it hasn't yet been loaded. The chief difference is that `import` fetches the module as a whole, so you must qualify to fetch its names; in contrast, `from` fetches (or copies) specific *names* out of the module.
+
+#### The import Statement
+In the first example, the name `module1` serves two different purposes - it identifies an external file to be loaded, and it becomes a variable in the script, which references the module object after the file is loaded:
+```
+>>> import module1
+>>> module1.printer('Hello world!')
+Hello world!
+```
+The `import` statement simply lists one or more names of modules to load, separated by commas. Because it gives a name that refers to the *whole module* object, we must go through the module name to fetch its attributes (e.g., `module1.printer`).
+
+#### The from Statement
+By contrast, because from copies *specific names* from one file over to another scope, it allows us to use the copied names directly in the script without going through the module (e.g., `printer`):
+```
+>>> from module1 import printer
+>>> printer('Hello world!')
+Hello world!
+```
+As you'll see in more details later, the `from` statement is really just a minor extension to the `import` statement - it imports the module file as usual (running the full three-step procedure), but adds an extra step that copies one or more names (not objects) out of the file. The entire file is loaded, but you're given names for more direct access to its parts.
+
+#### The from * Statement
+Finally, the next example uses a special form of `from`: when we use a `*` instead of specific names, we get copies of *all names* assigned at the top level of the referenced module. Here again, we can then use the copied name `printer` in our script without going through the module name.
+
+### Advanced Module Topics
+#### Mixed Usage Modes: __name__ and __main__
+It's actually so simple that some miss the point at first: each module has a built-in attribute called `__name__` , which Python creates and assigns automatically as follows:
+- If the file is being run as a top-level program file, `__name__` is set to the string `"__main__"` when it starts.
+- If the file is being imported instead, `__name__` is set to the module's name as known by its clients.
+
+## Classes and OOP
+### Class Coding Basics
+#### Classes Generate Multiple Instance Objects
+##### A First Example
+let's define a class named `FirstClass`:
+```Python
+class FirstClass:
+    def setdata(self, value):
+        self.data = value
+    def display(self):
+        print(self.data)
+```
+Like all compound statements, the `class` starts with a header line that lists the class name, followed by a body of one or more nested and (usually) indented statements. Here, the nested statements are `def`s; they define functions that implement the behavior the class means to export.
+
+Functions inside a class are usually called *methods*. In a method function, the first argument automatically receives an implied instance object when called - the subject of the call.
+
+As with everything else in Python, there are no declarations for instance attributes (sometimes called members); they spring into existence the first time they are assigned values, just like simple variables.
+
+#### Classes Are Customized by Inheritance
+##### A Second Example
+To illustrate the role of inheritance, this next example builds on the previous one. First, we'll define a new class, `SecondClass`, that inherits all of `FirstClass`'s names and provides one of its own:
+```Python
+class SecondClass(FirstClass):
+    def display(self):
+        print('Current value = "%s"' % self.data)
+```
+`SecondClass` defines the `display` method to print with a different format. By defining an attribute with the same name as an attribute in `FirstClass`, `SecondClass` effectively replaces the `display` attribute in its superclass.
+
+The net effect here is that `SecondClass` specializes `FirstClass` by changing the behavior of the `display` method. On the other hand, `SecondClass` still inherits the `setdata` method in `FirstClass` verbatim.
+
+#### Classes Can Intercept Python Operators
+- **Methods named with double underscores are special hooks.** In Python classes we implement operator overloading by providing specially named methods to intercept operations.
+
+Still, there is one operator overloading method you are likely to see in almost every realistic Python class: the `__init__` method, which is known as the *constructor* method and is used to initialize objects' state.
+
+##### A Third Example
+This time, we'll define a subclass of the prior section's `SecondClass` that implements three specially named attributes that Python will call automatically:
+- `__init__` is run when a new instance object is created: `self` is the new `ThirdClass` object.
+- `__str__` is run when an object is printed.
+
+```Python
+>>> class ThirdClass(SecondClass):
+...     def __init__(self, value): # On "ThirdClass(value)"
+...         self.data = value
+...     def __str__(self):         # On "print(self)"
+...         return '[ThirdClass: %s]' % self.data
+...
+
+>>> a = ThirdClass('abc')          # __init__ called
+>>> print(a)                       # __str__: returns display string
+[ThirdClass: abc]
+```
+`ThirdClass` "is a" `SecondClass`, so its instances inherit the customized `display` method from `SecondClass` of the preceding section. This time, though, `ThirdClass` creation calls pass an argument (e.g., "abc"). This argument is passed to the `value` argument in the `__init__` constructor and assigned to `self.data` there. The net effect is that `ThirdClass` arranges to set the `data` attribute automatically at construction time, instead of requiring `setdata` calls after the fact.
+
+Specially named methods such as `__init__` and `__str__` are inherited by subclasses and instances, just like any other names assigned in a `class`. If they're not coded in a class, Python looks for such names in all its superclasses, as usual.
+
+## Exceptions and Tools
+### Exception Coding Details
+#### The try/except/else Statement
+*Syntactically*, the `try` is a compound, multipart statement. It starts with a `try` header line, followed by a block of (usually) indented statements; then one or more `except` clauses that identify exceptions to be caught and blocks to process them; and an optional `else` clause and block at the end. You associate the words `try`, `except`, and `else` by indenting them to the same level (i.e., lining them up vertically).
+```Python
+try:
+    statements            # Run this main action first
+except name1:
+    statements            # Run if name1 is raised during try block
+except (name2, name3):
+    statements            # Run if any of these exceptions occur
+except name4 as var:
+    statements            # Run if name4 is raised, assign instance raised to var
+except:
+    statements            # Run for all other exceptions raised
+else:
+    statements            # Run if no exception was raised during try block
+```
+*Semantically*, the block under the `try` header in this statement represents the *main action* of the statement - the code you're trying to run and swap in error processing logic. The `except` clauses define *handlers* for exceptions raised during the `try` block, and the `else` clause provides a handler to be run if *no* exceptions occur.
+
+##### How try Statements Work
+The statements nested under the `try` header are run first. What happens next depends on whether exceptions are raised while the try block's statements are running, and whether they match those that the `try` is watching for:
+- If an exception *occurs* while the `try` block's statements are running, and the exception matches one that the statement names, Python jumps back to the try and runs the statements under the first `except` clause that matches the raised exception, after assigning the raised exception object to the variable named after the as keyword in the clause (if present).
+- If an exception *occurs* while the `try` block's statements are running, but the exception *does not* match one that the statement names, the exception is propagated up to the next most recently entered `try` statement that matches the exception;
+- If an exception *does not* occur while the try block's statements are running, Python runs the statements under the `else` line (if present), and control then resumes below the entire `try` statement.
+
+#### The try/finally Statement
+The other flavor of the `try` statement is a specialization that has to do with finalization (a.k.a. termination) actions. If a `finally` clause is included in a `try`, Python will always run its block of statements "on the way out" of the `try` statement, whether an exception occurred while the try block was running or not.
+
+#### with/as Context Managers
+In short, the `with/as` statement is designed to be an alternative to a common `try/finally` usage idiom;
+
+Python enhances some built-in tools with context managers, such as files that automatically close themselves and thread locks that automatically lock and unlock, but programmers can code context managers of their own with classes, too.
+
+##### Basic Usage
+The basic format of the `with` statement looks like this, with an optional part in square brackets here:
+```
+with expression [as variable]:
+    with-block
+```
+The *`expression`* here is assumed to return an object that supports the context management protocol.
+
+Some built-in Python objects have been augmented to support the context management protocol, and so can be used with the `with` statement. For example, file objects have a context manager that automatically closes the file after the `with` block regardless of whether an exception is raised, and regardless of if or when the version of Python running the code may close automatically:
+```Python
+with open("stats.txt", "w") as myfile:
+    for line in myfile:
+        print(line)
+        ...more code here...
+```
+Here, the call to `open` returns a simple file object that is assigned to the name `myfile`. We can use `myfile` with the usual file tools - in this case, the file iterator reads line by line in the `for` loop.
+
+However, this object also supports the context management protocol used by the `with` statement. After this `with` statement has run, the context management machinery guarantees that the file object referenced by `myfile`is automatically closed, even if the loop raised an exception while processing the file.
+
+As we saw earlier, we can achieve a similar effect with the more general and explicit `try/finally` statement, but it requires three more lines of administrative code in this case:
+```Python
+myfile = open("stats.txt", "w")
+try:
+    for line in myfile:
+        print(line)
+        ...more core here...
+finally:
+    myfile.close()
+```
+the lock and condition synchronization objects they define may also be used with the `with` statement because they support the context management protocol - in this case adding both entry and exit actions around a block:
+```Python
+lock = threading.lock()
+with lock:
+    # critical section of code
+    ...access shared resources...
+```
+Here, the context management machinery guarantees that the lock is automatically acquired before the block is executed and released once the block is complete, regardless of exception outcomes.
+
+##### The Context Management Protocol
+Although some built-in types come with context managers, we can also write new ones of our own. To implement context managers, classes use special methods that fall into the operator overloading category to tap into the `with` statement.
+
+Here's how the `with` statement actually works:
+1. The expression is evaluated, resulting in an object known as a *context manager* that must have `__enter__` and `__exit__` methods.
+2. The context manager's `__enter__` method is called. The value it returns is assigned to the variable in the `as` clause if present, or simply discarded otherwise.
+3. The code in the nested `with` block is executed.
+4. If the `with` block arises an exception, the `__exit__(type, value, traceback)` method is called with the exception details. If this method returns a false value, the exception is reraised; otherwise, the exception is terminated. The exception should normally be raised so that it is propagated outside the `with` statement.
+5. If the `with` block does not raise an exception, the `__exit__` method is still called, but its type *`type`*, *`value`*, and *`traceback`* arguments are all passed in as `None`.
+
+The following, file *withas.py* defines a context manger object that traces the entry and exit of the `with` block in any `with` statement it is used for:
+```Python
+class TraceBlock:
+    def message(self, arg):
+        print('running ' + arg)
+    def __enter__(self):
+        print('starting with block')
+        return self
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        if exc_type is None:
+            print('exited normally\n')
+        else:
+            print('raised an exception! ' + str(exc_type))
+            return False # Propagate
+
+if __name__ == '__main__':
+    with TraceBlock() as action:
+        action.message('test 1')
+        print('reached')
+
+    with TraceBlock() as action:
+        action.message('test 2')
+        raise TypeError
+        print('not reached')
+```

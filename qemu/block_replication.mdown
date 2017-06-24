@@ -1,0 +1,160 @@
+## COLO Storage Process
+
+![Storage Process](storage_process.png)
+
+- **Write**
+  - **Pnode**
+    - DM sends the write request (offset, len, data) to PVM cache in Snode
+    - DM calls block driver to write to storage
+  - **Snode**
+    - DM saves write request in SVM cache
+- **Read**
+  - **Snode**
+    - From SVM cache, or storage otherwise
+  - **Pnode**
+    - From storage
+- Checkpoint
+  - DM calls block driver to flush PVM cache
+- Failover
+  - DM calls block driver to flush SVM cache
+
+## Disk images for virtual machines
+There are in fact two different disk image types we can use:
+- A "preallocated" disk image (1:1 blocks): a 10 GB disk image reserves 10 GB of disk space, regardless of whether the virtual machine guests uses 1 GB or 10 GB
+- An "extensible" disk image, useful for growing on demand
+
+There is a tradeoff in the above:
+- An "extensible" disk image uses a special disk format (in KVM: QCOW2) where the image file "grows" over time, as the guest VM starts using more and more disk space. From the VM point of view, it sees a full size disk, but the hypervisor is actually lying to VM, and is allocating the disk blocks on the HOST side. Downside is slower performance and fragmentation, upside is less disk use.
+
+QCOW2 has a very useful functionality, called "copy on write" (COW).
+
+We create a new disk image, but instead of copying the existing image, we tell the image creation tool that the new image should use the "master" image as a *backing file*. For example:
+```
+qemu-img create -o backing_file=master_image.qcow2 -f guest1.qcow2 10G
+```
+This would create a 10GB QCOW2 image called guest1.qcow2, which uses `master_image.qcow2` as a backing file.
+
+- When the guest VM using `guest1.qcow2` reads from disk, KVM will actually read the block from the `master_image.qcow2`
+- When the guest VM writes to its disk, KVM will write the changes to the guest1.qcow2
+
+The file `master_image.qcow2` is *never* written to.
+
+You can use this method to have many guest disks using a single backing file. It's then very easy to "reset" the machines by deleting the guest*.qcow2 files and create new ones using master_image.qcow2 as the backing file.
+
+A qcow2 image file is organized in units of constant size, which are called (host) clusters. A cluster is the unit in which all allocations are done, both for actual guest data and for image metadata.
+
+Likewise, the virtual disk as seen by the guest is divided into (guest) clusters of the same size.
+
+qcow2 uses a two-level structure for the mapping of guest clusters to host clusters. They are called L1 and L2 table.
+
+Given a offset into the virtual disk, the offset into the image file can be obtained as follows:
+```
+l2_entries = (cluster_size / sizeof(uint64_t))
+l2_index = (offset / cluster_size) % l2_entries
+l1_index = (offset / cluster_size) / l2_entries
+l2_table = load_cluster(l1_table[l1_index]);
+cluster_offset = l2_table[l2_index];
+return cluster_offset + (offset % cluster_size)
+```
+
+## COLO Block Replication
+```
+         virtio-blk       ||
+             ^            ||                            .----------
+             |            ||                            | Secondary
+        1 Quorum          ||                            '----------
+         /      \         ||
+        /        \        ||
+   Primary    2 filter
+     disk         ^                                                             virtio-blk
+                  |                                                                  ^
+                3 NBD  ------->  3 NBD                                               |
+                client    ||     server                                          2 filter
+                          ||        ^                                                ^
+--------.                 ||        |                                                |
+Primary |                 ||  Secondary disk <--------- hidden-disk 5 <--------- active-disk 4
+--------'                 ||        |          backing        ^       backing
+                          ||        |                         |
+                          ||        |                         |
+                          ||        '-------------------------'
+                          ||           drive-backup sync=none
+
+Primary:
+  -drive if=xxx,driver=quorum,read-pattern=fifo,id=colo1,vote-threshold=1\
+         children.0.file.filename=1.raw,\
+         children.0.driver=raw,\
+
+  # Quorum is a QEMU RAID like block storage driver.
+  # It will write to all children.
+  # read mode:
+  #    1. quorum mode. read from all childer. If more than threshold
+  #       reads are identical the read succeed
+  #    2. fifo mode. read only from the first child that has not failed
+
+  Run qmp command in primary qemu:
+    child_add disk1 child.driver=replication,child.mode=primary,\
+              child.file.host=xxx,child.file.port=xxx,\
+              child.file.driver=nbd,child.ignore-errors=on
+
+Secondary:
+  -drive if=none,driver=raw,file=1.raw,id=colo1 \
+  -drive if=xxx,driver=replication,mode=secondary,\
+         file.file.filename=active_disk.qcow2,\
+         file.driver=qcow2,\
+         file.backing.file.filename=hidden_disk.qcow2,\
+         file.backing.driver=qcow2,\
+         file.backing.allow-write-backing-file=on,\
+         file.backing.backing.backing_reference=colo1\
+
+  Then run qmp command in secondary qemu:
+    nbd-server-start host:port
+    nbd-server-add -w colo1
+```
+QEMU has a feature: backing file<br>
+For example: A's backing file is B<br>
+1. If we read from A, but the sector is not allocated in A. We wil return a zero sector to the guest. If A has a backing file, we will read the sector from B instead of returning a zero sector.
+2. The backing file doesn't affect the write operation.
+
+QEMU has another feature: backup block job<br>
+Backup job has two file: one is source and another is the target. It has some running mode. For block replication, we use the mode "sync=none". In this mode, we will read the data from the source disk before we modify it, and write it to the target disk. We keep a bitmap to remeber which sector is backuped from the source disk to the target disk. If the target disk is an empty disk, and empty disk's backing file is the source disk, we can read from the target disk to get the source disk's original data.<br>
+
+How does block replication work:<br>
+A. primary qemu:
+1. use the block driver quorum: it will read from all children and write to all children.<br>
+   child 0: real disk<br>
+   child 1: nbd client<br>
+   reading from child 1 will fail, but we use the fifo mode. In this mode, we read from child 0 will success and we don't read from child 0<br>
+   write to child 1: because child 1 is nbd client, it will forward the write request to nbd server
+
+B. secondary qemu:<br>
+We have 3 disks: active disk(called it A), hidden disk(called it H), and secondary disk (real disk, called it S).<br>
+A's backing file is H, and H's backing file is S.<br>
+We also start a backup job: the source disk is S, and the target disk is H.<br>
+we run nbd server in secondary qemu. And the nbd server will write to S.
+
+Before resuming both primary vm and secondary vm: the state is:
+1. primary disk and secondary disk are in the consistent state (contain the same data)
+2. active disk and hidden disk are the empty disk
+
+When the guest is running:
+1. NBD server receives the primary write operation and writes the data to S
+2. Before we write data to S, the backup job will read the original data and backup it to H
+3. The secondary vm will write data to A.
+4. If secondary vm will read data from A:
+   1. If the sector is allocated in A, read it from A.
+   2. Otherwise, the secondary vm doesn't modify this sector after the latest is resumed.
+   3. In this case, we read it from H. We can read S's original data from H (See the explanation in backup job).
+
+After Failover:<br>
+Secondary:
+  - The primary host is down, so we should do the following thing:
+  ```
+  { 'execute': 'nbd-server-stop' }
+  ```
+  - active disk data is written back to the hidden disk, and then hidden disk data is written back to the secondary disk
+
+## Remus Disk Buffering
+- All writes to active VM’s disk are write througth
+   - Immediately applied to primary disk
+   - Asynchronously mirrored to backup's memory buffer. At the end of a checkpoint, primary flushes any pending data in the socket and sends a *commit* message to the backup.
+   - No on disk state changed until the entire checkpoint has been received

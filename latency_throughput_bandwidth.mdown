@@ -1,0 +1,11 @@
+## Latency and Throughput
+We start by introducing two important measures that we use to compare the performance of protocols. Consider a system (like a network) where jobs (like messages) arrive, and after completion leaves the network. *Throughput* roughly measures the number of jobs completed per second. *Latency* measures the time to complete a job.
+
+The owners of a system want to maximize throughput to maximize revenues, while users of a system want low latencies so they don't waste their time. A busy traffic signal should typically maximize for throughput by having each signal direction stay for a long time; this minimizes the startup overhead every time the signal changes. However, that means even if there is nobody at the intersection, you may have to wait a long time till the signal light changes if you are unlucky and arrive just as your light changes to red.
+
+One might think that throughput is just the reciprocal of latency. That is *not* true when the system is pipelined - i.e., the number of users that may being serviced at the same time inside the system. For example, if the system consists of 8 service stations that take 1 unit of time each. If each job must go through each station, the throughput can be 1 job per unit time, while the latency is 8. On the other hand, suppose each jobs needs only 1 service station and any service station will do. Then the throughput can be 8 jobs per unit time, and the latency is 1.
+
+## Bandwidth and Latency (Delay)
+The *transmission rate* at the Data Link is the rate at which the physical later sends bits. Thus a physical layer that sends 1000 bits a second, sends a bit every msec. The *propagation delay* is the time it takes for a single bit that is sent to arrive at the receiver. Propagation delay is limited by the speed of light to at least 3 usec/ per km. (Electrical signals travel even slower) and depends on the distance of the link between the sender receiver. Consider a sender and receiver that are connected by a 50 km link. Assume speed of light propagation, that amounts to a 0.15 msec propagation and 1000 bit/second transmission, a 10 bit frame will take 1.15 msec to be received completely: 10 msec to put all the bits on the link, and .15 msec for the last bit ti reach the receiver.
+
+![Sending One Packet](sending_one_packet.png)

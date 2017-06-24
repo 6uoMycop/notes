@@ -1,0 +1,38 @@
+Live Migration
+==============
+
+Stage 1: Walk RAMBlock List find last page <ram_save_setup()>
+	- Assume all memory dirty
+	- Enable KVM Dirty Page Logging
+Stage 2: Keep sending dirty RAM pages since last iteration <ram_save_iterate()>
+Stage 3: Stop guest, transfer remaining dirty RAM, device state
+
+We begin stage 1 by marking each page "dirty" - or "needs to be migrated".
+Then we send across all those pages marked dirty to the destination host.
+That’s it for stage 1.
+
+When to transition from stage 2 to stage 3 is an important decision to
+make: the guest is paused for the duration of stage 3, so it’s desirable
+to have as few pages to migrate as possible in stage 3 to reduce the
+downtime.
+
+The very first migration implementation in QEMU was rather simplistic:
+if there were 50 or fewer dirty pages left to migrate while in stage 2,
+we would move to stage 3. Or when a particular number of iterations had
+elapsed without making any progress towards having fewer than 50 dirty
+pages.
+
+This worked well initially, but then several new constraints had to be
+added. Customers running their customers' workloads on KVM had to provide
+some SLAs, including the maximum acceptable downtime. So we added a few
+tunables to the code to make the conditions to transition from stage 2
+to stage 3 configurable by guest as well as host admins.
+
+The guest admins can specify the maximum acceptable downtime. In our stage
+2 code, we check how many pages are being dirtied in each iteration by the
+guest, and how much time it takes to transfer the pages across, which gives
+us an estimate of the network bandwidth. Depending on this estimate of the
+bandwidth, and the number of dirty pages for the current iteration, we can
+calculate how much time it will take to transfer the remaining pages. If
+this is within the acceptable or configured downtime limit, we transition
+to stage 3.
