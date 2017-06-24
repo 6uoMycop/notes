@@ -1,0 +1,55 @@
+## Data Alignment
+When a CPU reads or writes into memory, it does the job in small chunks (called word size or 4 bytes). This arrangement increases the performance of the system. Effectively, it puts the data at the offset/address that is a multiple of a word size.
+
+Imagine a case where the data is not stored at the offsets that are multiples of word size. we can see a situation where data of size word is stored from location 2<sup>nd</sup> - 3<sup>rd</sup> - 4<sup>th</sup> - 5<sup>th</sup>. Here, we are assuming that the 0<sup>th</sup> and 1<sup>st</sup> locations are either empty or some data is already stored there.
+
+![Alignment process](alignment_process.png)
+
+First, the processor will load one word from the 0<sup>th</sup> location and shifts two bytes to the left to get the most significant two bytes. Then it fetches another word from the 1<sup>st</sup> location and shifts two bytes to the right to get the least significant two bytes. After doing so, it will merge both the results to get the final word. Eventually, the processor takes two cycles to fetch one word when the desired data is misaligned. The extra cycle has a drastic impact on the performance of the code.
+
+## Structure Padding
+As explained above, for performance, the compiler tries to address the data alignment in the structure with a method called structure padding.
+
+The structure above, *`struct data`* has three members (*`int i`*, *`char c`*, and *`int j`*). When the structure gets loaded in memory, *`int i`* starts at an offset of the 0<sup>th</sup> byte, *`char c*` starts at an offset of the 5<sup>th</sup> byte, and *`int j`* starts at an offset of the 6<sup>th</sup> byte. With the arrangement above, you can see that when the process tries to access the variable *`j`*, it will take two cycles to do so because *`int j`* is not aligned to the offset which is a multiple of the word size.
+
+To rectify this issue, the compiler adds the required number of bytes to align the members of the data structure when required. As mentioned before, this action of adding bytes to align the member fields is termed structure padding.
+```C
+#include <stdio.h>
+
+int main(int argc, char *argv[])
+{
+    struct data
+    {
+        int i;
+        char c;
+        int j;
+    };
+    struct data v1;
+    struct data *dsptr;
+    printf("Size of struct data = %d\n", sizeof(struct data));
+    dsptr = (struct data*)malloc(sizeof(struct data));
+    printf("Address of member int i = %u\n", &(dsptr->i));
+    printf("Address of member char c = %u\n", &(dsptr->c));
+    printf("Address of member int j = %u\n", &(dsptr->j));
+    return 0;
+}
+```
+Output:
+```
+Size of structure data = 12
+Address of member int i = 1263240
+Address of member char c = 1263244
+Address of member int j = 1263248
+```
+You can clearly see that the member *`int j`* is starting from an offset that is four bytes after the offset of the member *`char c`*.
+
+## Structure Packing
+To avoid structure padding, you can use a "packed" directive in the case of the GNU C compiler.
+```C
+struct data
+{
+    int i;
+    char c;
+    int j;
+}__attribute__((__packed__));
+```
