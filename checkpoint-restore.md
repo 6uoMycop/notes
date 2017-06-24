@@ -246,9 +246,11 @@ In the preceding example, we're telling tmux to open Vim and to specifically tar
 
 ## mounting
 - One file system is configured to be the "root file system" and its root directory becomes the "system root directory".
-- Other file systems are attached to the root file system by mounting each new file system onto a directory in the root file system. That “mounted on” directory is also called the "mount point".
+- Other file systems are attached to the root file system by mounting each new file system onto a directory in the root file system. That "mounted on" directory is also called the "mount point".
 
 ![Mounting one filesystem to another](mounting.png)
+
+> Note: The `/proc` filesystem contains a illusionary filesystem. It does not exist on a disk. Instead, the kernel creates it in memory. It is used to provide information about the system (originally about processes, hence the name).
 
 ## Namespaces in operation
 ### namespaces overview

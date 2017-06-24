@@ -1,0 +1,94 @@
+## Header Files
+### Once-Only Headers
+#### Double inclusion
+The following C code demonstrates a real problem that can arise if #include guards are missing:
+
+**File "grandfather.h"**
+```C
+struct foo {
+    int member;
+};
+```
+**File "father.h"**
+```C
+#include "grandfather.h"
+```
+**File "child.c"**
+```C
+#include "grandfather.h"
+#include "father.h"
+```
+Here, the file "child.c" has indirectly included two copies of the text in the header file "grandfather.h". This causes a compilation error, since the structure type `foo` will thus be defined twice.
+#### Use of #include guards
+**File "grandfather.h"**
+```C
+#ifndef GRANDFATHER_H
+#define GRANDFATHER_H
+
+struct foo {
+    int member;
+};
+
+#endif /* GRANDFATHER_H */
+```
+**File "father.h"**
+```C
+#include "grandfather.h"
+```
+**File "child.c"**
+```C
+#include "grandfather.h"
+#include "father.h"
+```
+Here, the first inclusion of "grandfather.h" causes the macro `GRANDFATHER_H` to be defined. Then, when "child.c" includes "grandfather.h" the second time, the `#ifndef` test returns false, and the preprocessor skips down to the `#endif`, thus avoiding the second definition of `struct foo`. The program compiles correctly.
+
+## Macros
+### Variadic Macros
+variadic macros have a variable number of arguments; these are mostly useful for dealing with variadic functions (like `printf`) that also take a variable number of arguments.
+
+To define a variadic macro, define a macro with arguments where the last argument is three periods: `...` . The macro `__VA_ARGS__` then expands to whatever arguments matched this ellipsis in the macro call.
+
+For example:
+```C
+#include <stdio.h>
+
+#define Warning(...) fprintf(stderr, __VA_ARGS__)
+
+int
+main(int argc, char **argv)
+{
+    Warning("%s: this program contains no useful code\n", argv[0]);
+    
+    return 1;
+}
+```
+It is possible to mix regular arguments with `...`, as long as `...` comes last:
+```C
+#define Useless(format, ...) printf(format, __VA_ARGS__)
+```
+If your macro is complicated, you may want a more descriptive name for the variable argument than `__VA_ARGS__`. CPP permits this, as an extension. You may write an argument name immediately before the `'…'`; that name is used for the variable argument. The `Warning` macro above could be written
+```C
+#define Warning(args...) fprintf(stderr, args)
+```
+
+### Macro Pitfalls
+#### Swallowing the Semicolon
+
+```C
+#define SAFE_FREE(p) free(p); p = NULL;
+```
+This can cause trouble before `else` statements:
+```C
+if (NULL != p)
+    SAFE_FREE(p)
+else
+    .../* do something */
+```
+expands into
+```C
+if (NULL != p)
+    free(p); p = NULL;
+else
+    .../* do something */
+```
+The definition of the macro `SAFE_FREE` can be altered to solve this problem, using a `do … while` statement.
