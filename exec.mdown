@@ -1,0 +1,139 @@
+An xv6 process consists of user-space memory (instructions, data, and stack) and per-process state private to the kernel Xv6 provides time-sharing: it transparently switches the available CPUs among the set of processes waiting to execute. When a process is not executing, xv6 saves its CPU registers, restoring them when next runs the process.
+
+A process may create a new process using the `fork` system call. `Fork` creates a new process, called the child, with exactly the same memory contents as the calling process, called the parent.
+
+Note that the parent and child were executing with different memory and different registers: changing a variable in the parent does not affect the child, nor does the child affect the parent.
+
+The `exec` system call replaces the calling process's memory with a new memory image loaded from a file stored in the file system. The file must have a particular format, which specifies which part of the file holds instructions, which part is data, at which instruction to start, etc. The format xv6 uses is called the ELF format. When `exec` succeeds, it does not return to the calling process, instead, the instructions loaded from the file start executing at the entry point declared in the ELF header. `Exec` takes two arguments: the name of the file containing the executable and an array of string arguments. For example:
+```
+char *argv[3];
+
+argv[0] = "echo";
+argv[1] = "hello";
+argv[2] = 0;
+exec("/bin/echo", argv);
+printf("exec error\n");
+```
+This fragment replaces the calling program with an instance of the program `/bin/echo` running with the argument list `echo hello`.
+
+The xv6 shell uses the above calls to run programs on behalf of users. The main loop reads the input on the command line using `getcmd`. Then it calls `fork`, which creates another running shell program. The parent shell calls `wait`, while the child process runs the command. For example, if the user had typed "echo hello" at the prompt, `runcmd` would have been called with "echo hello" as the argument. `runcmd` runs the actual command. For the simple example, it would call `exec`, which loads and starts the program `echo`, changing the program counter to the first instruction of `echo`. If `exec` succeeds, then the child will be running `echo` and the child will not execute the next line of `runcmd`. Instead, it will be running instructions of `echo` and at some point in the future, `echo` will call `exit`, which will cause the parent to return from `wait` in `main`.
+```C
+// Execute cmd.  Never returns.
+void
+runcmd(struct cmd *cmd)
+{
+  int p[2];
+  struct backcmd *bcmd;
+  struct execcmd *ecmd;
+  struct listcmd *lcmd;
+  struct pipecmd *pcmd;
+  struct redircmd *rcmd;
+
+  if(cmd == 0)
+    exit();
+  
+  switch(cmd->type){
+  default:
+    panic("runcmd");
+
+  case EXEC:
+    ecmd = (struct execcmd*)cmd;
+    if(ecmd->argv[0] == 0)
+      exit();
+    exec(ecmd->argv[0], ecmd->argv);
+    printf(2, "exec %s failed\n", ecmd->argv[0]);
+    break;
+
+  case REDIR:
+    rcmd = (struct redircmd*)cmd;
+    close(rcmd->fd);
+    if(open(rcmd->file, rcmd->mode) < 0){
+      printf(2, "open %s failed\n", rcmd->file);
+      exit();
+    }
+    runcmd(rcmd->cmd);
+    break;
+
+  case LIST:
+    lcmd = (struct listcmd*)cmd;
+    if(fork1() == 0)
+      runcmd(lcmd->left);
+    wait();
+    runcmd(lcmd->right);
+    break;
+
+  case PIPE:
+    pcmd = (struct pipecmd*)cmd;
+    if(pipe(p) < 0)
+      panic("pipe");
+    if(fork1() == 0){
+      close(1);
+      dup(p[1]);
+      close(p[0]);
+      close(p[1]);
+      runcmd(pcmd->left);
+    }
+    if(fork1() == 0){
+      close(0);
+      dup(p[0]);
+      close(p[0]);
+      close(p[1]);
+      runcmd(pcmd->right);
+    }
+    close(p[0]);
+    close(p[1]);
+    wait();
+    wait();
+    break;
+    
+  case BACK:
+    bcmd = (struct backcmd*)cmd;
+    if(fork1() == 0)
+      runcmd(bcmd->cmd);
+    break;
+  }
+  exit();
+}
+
+int
+getcmd(char *buf, int nbuf)
+{
+  printf(2, "$ ");
+  memset(buf, 0, nbuf);
+  gets(buf, nbuf);
+  if(buf[0] == 0) // EOF
+    return -1;
+  return 0;
+}
+
+int
+main(void)
+{
+  static char buf[100];
+  int fd;
+  
+  // Assumes three file descriptors open.
+  while((fd = open("console", O_RDWR)) >= 0){
+    if(fd >= 3){
+      close(fd);
+      break;
+    }
+  }
+  
+  // Read and run input commands.
+  while(getcmd(buf, sizeof(buf)) >= 0){
+    if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
+      // Clumsy but will have to do for now.
+      // Chdir has no effect on the parent if run in the child.
+      buf[strlen(buf)-1] = 0;  // chop \n
+      if(chdir(buf+3) < 0)
+        printf(2, "cannot cd %s\n", buf+3);
+      continue;
+    }
+    if(fork1() == 0)
+      runcmd(parsecmd(buf));
+    wait();
+  }
+  exit();
+}
+```

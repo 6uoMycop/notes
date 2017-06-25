@@ -1,0 +1,48 @@
+## Introduction
+### Data Files for the Examples
+The second data file, called `inventory-shipped`, represents information about shipments during the year.
+```
+Jan  13  25  15 115
+Feb  15  32  24 226
+Mar  15  24  34 228
+Apr  31  52  63 420
+May  16  34  29 208
+...
+```
+
+## Reading Input Files
+### How Input is Split into Records
+The `awk` utility divides the input for your `awk` program into records and fields. Records are separated by a character called the **record separator**. By default, the record separator is the newline character. This is why records are, by default, single lines.
+
+### Examining Fields
+When `awk` reads an input record, the record is automatically separated or **parsed** by the interpreter into chunks called **fields**. By default, fields are separated by whitespace, like words in a line. Whitespace in `awk` means any string of one or more spaces and/or tabs.
+
+To refer to a field in an `awk` program, you use a dollar-sign, `$`, followed by the number of the field you want. Thus, `$1` refers to the first field, `$2` to the second, and so on.
+
+### Changing the Contents of a Field
+
+You can change the contents of a field as seen by `awk` within an `awk` program; this changes what `awk` perceives as the current input record. (The actual input is untouched; `awk` *never* modifies the input file.)
+
+Consider this example and its output:
+```
+$ awk '{ $3 = $2 - 10; print $2, $3 }' inventory-shipped
+-| 13 3
+-| 15 5
+-| 15 5
+...
+```
+The `-` sign represents subtraction, so this program reassigns field three, `$3`, to be the value of field two minus ten, `$2 - 10`.
+
+## Patterns and Actions
+A reasonably general representation of a typical `awk` invocation is as follows:
+```
+awk 'BEGIN {commands} /pattern/{commands} END {commands}' file
+```
+The `BEGIN` and `END` steps are optional. They are used to issue commands before and after the parsing step, usually to first initialize counter variables and then print the result at the end.
+
+The `awk` editor searches each record in a file for a pattern and performs some action when it finds the pattern.
+
+## Built-in Variables
+### Built-in Variables that Convey Information
+- `NR`
+  This is the number of input records `awk` has processed since the beginning of the program's execution. `NR` is set each time a new record is read.

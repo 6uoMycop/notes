@@ -487,12 +487,37 @@ if __name__ == '__main__':
 The `subprocess` module allows you to spawn new processes, connect to their input/output/error pipes, and obtain their return codes.
 
 #### Using the subprocess Module
+The recommended way to launch subprocesses is to use the following convenience functions. For more advanced use cases when these do not meet your needs, use the underlying `Popen` interface.
+
+- `subprocess.call()`<br>
+  Run the command described by *args*. Wait for command to complete, then return the `returncode` attribute.
+
+  Setting the *shell* argument to a true value causes subprocess to spawn an intermediate shell process, which then runs the command.
+  ```Python
+  import subprocess
+  # Command with shell expansion
+  subprocess.call('echo $HOME', shell=True)
+  ```
+  Using an intermediate shell means that variables, glob patterns, and other special shell features in the command string are processed before the command is run.
+  ```
+  $ python subprocess_shell_variables.py
+  /Users/dhellmann
+  ```
+
+- `subprocess.check_output()`<br>
+  Run command with arguments and return its output as a byte string.
+  ```Python
+  import subprocess
+
+  output = subprocess.check_output(['ls', '-1'])
+  print 'Have %d bytes in output' % len(output)
+  print output
+  ```
+##### Popen Constructor
 - `class subprocess.Popen(args, bufsize=0, executable=None, stdout=None, stderr=None, shell=False)`<br>
   Execute a child program in a new process. On Unix, the class uses `os.execvp()`-like behavior to execute the child program.
 
-  The *shell* argument specifies whether to use the shell as the program to execute.
-
-  On Unix with `shell=True`, the shell defaults to `/bin/sh`. If *args* is a string, the string specifies the command to execute through the shell. This means that the string must be formatted exactly as it would be when typed at the shell prompt.
+  On Unix with `shell=True`, the shell defaults to `/bin/sh`.
 
   *stdout* and *stderr* specify the executed program's standard standard output and standard error file handles, respectively.
 
@@ -606,6 +631,16 @@ print 'Received', repr(data)
   thwas was string example....wow!!! thwas was really string
   ```
 
+- `str.split([keepends])`<br>
+  Returns a list of the lines in the string, breaking the string at line boundries. Linebreaks are NOT included in the resulting list unless the [keepends] is given and True.
+  ```
+  >>> t = "The time has come\r\nFor all good men"
+  >>> t.splitlines()
+  ['The time has come', 'For all good men']
+  >>> t.splitlines(True)
+  ['The time has come\r\n', 'For all good men']
+  ```
+
 - `str.startswith(prefix)`<br>
   - Return `True` if string starts with the *prefix*, otherwise return `False`.
 
@@ -623,14 +658,28 @@ The `datetime` module supplies classes for manipulating dates and times in both 
 - `class datetime.datetime`<br>
   A combination of a date and a time.
 
+- `class datetime.timedelta`<br>
+  A duration expressing the difference between two `datetime` instances to microsecond resolution.
+
+#### timedelta Objects
+The internal values for a `timedelta` are stored in days, seconds, and microseconds.
+
 #### datetime Objects
 Constructor:
-- `class datetime.datetime(year, month, day[, hour[, minute[, second[, microsecond]]]])`
+
+- `class datetime.datetime(year, month, day[, hour[, minute[, second[, microsecond]]]])`<br>
   The year, month and day arguments are required.
 
 Other constructors, all class methods:
-- `classmethod datetime.today()`
+
+- `classmethod datetime.today()`<br>
   Return the current local datetime.
+
+Supported operations:
+
+Operation | Result
+------------ | -------------
+timedelta = datetime1 - datetime2 |  
 
 #### `strftime()` and `strptime()` Behavior
 `date`, `datetime`, and `time` objects all support a `strftime(format)` method, to create a string representing the time under the control of an explicit format string.
