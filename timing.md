@@ -173,6 +173,11 @@ main(int argc, char **argv) {
     e_usec = ((end.tv_sec * 1000000) + end.tv_usec) - ((start.tv_sec * 1000000) + start.tv_usec);
 
     printf("elapsed time: %lu microseconds\n", e_usec);
+
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    printf("%lu.%06lu\n", tv.tv_sec, tv.tv_usec);
+
     exit(0);
 }
 ```
