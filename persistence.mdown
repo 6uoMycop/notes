@@ -1,4 +1,84 @@
-## Crash Consistency
+# Persistence
+## Hard Disk Drives
+In this chapter, we dive into more detail about one device in particular: the **hard disk drive**. These drives have been the main form of persistent data storage in computer systems for decades and much of the development of file system technology is predicated on their behavior.
+
+### The Interface
+Let's start by understanding the interface to a modern disk drive. The basic interface for all modern drives is straightforward. The drive consists of a large number of sectors (512-byte blocks), each of which can be read or written. The sectors are numbered from *`0`* to *`n - 1`* on disk with *`n`* sectors. Thus, we can view the disk as an array of sectors.
+
+Multi-sector operations are possible; indeed, many file systems will read or write 4KB at a time (or more). However, when updating the disk, the only guarantee drive manufactures make is that a single 512-byte write is **atomic** (i.e., it will either complete in its entirety or it won't complete at all); thus, if an untimely power loss occurs, only a portion of a larger write may complete.
+
+### Basic Geometry
+Let's start to understand some of the components of a modern disk. We start with a **platter**, a circular hard surface on which data is stored persistently by inducing magnetic changes to it. A disk may have one or more platters; each platter has 2 sides, each of which is called a **surface**. These platters are usually made of some hard material (such as aluminum), and then coated with a thin magnetic layer that enables the drive to persistently store bits even when the drive is powered off.
+
+The platters are all bound together around the **spindle**, which is connected to a motor that spins the platters around (while the drive is powered on) at a constant rate.
+
+Data is encoded on each surface in concentric circles of sectors; we call one such concentric circle a **track**. A single surface contains many thousands and thousands of tracks, tightly packed together, with hundreds of tracks fitting into the width of a human hair.
+
+To read and write from the surface, we need a mechanism that allows us to either sense (i.e., read) the magnetic patterns on the disk or to induce a change in (i.e., write) them. This process of reading and writing is accomplished by the **disk head**; there is one such head per surface of the drive. The disk head is attached to a single **disk arm**, which moves across the surface to position the head over the desired track.
+
+### A simple Disk Drive
+
+Let's understand how disk work by building up a model one track at a time. Assume we have a simple disk with a single track.
+
+This track has just 12 sectors, each of which is 512 bytes in size, and addressed therefore by the numbers 0 through 11. The single platter we have here rotates around the spindle, to which a motor is attached.
+
+In the figure, the disk head, attached to the end of the arm, is positioned over sector 6, and the surface is rotating counter-clockwise.
+
+![A Single Track Plus A Head](disk_single_track.png)
+
+**Single-track Latency: The Rotational Delay**
+
+To understand how a request would be processed on our simple, one-track disk, imagine we now receive a request to read block 0.
+
+In our simple disk, the disk doesn't have to do much. In particular, it much just wait for the desired sector to rotate under the disk head. This wait happens often enough in modern drives, and is an important component of I/O service time. that it has a special name: **rotational delay**. A worst case request on this single track would be to sector 5, causing a full rotational delay in order to service such a request.
+
+**Multiple Tracks: Seek Time**
+
+Let's thus look at ever-so-slightly more realistic disk surface, this one with three tracks.
+
+In the figure, the head is currently positioned over the innermost track (which contains sectors 24 through 35); the next track over contains the next set of sectors (12 through 23), and the outermost track contains the first sectors (0 through 11).
+
+To understand how the drive might access a given sector, we now trace what would happen on a request to a distant sector, e.g., a read to sector 11. To service this read, the drive has first move the disk arm to the correct track (in this case, the outermost one), in a process known as a **seek**.
+
+The seek, it should be noted, has many phases: first an *acceleration* phase as the disk arm gets moving; then *coasting* as the arm is moving at full speed, then *deceleration* as the arm slows down; finally *settling* as the head is carefully positioned over the correct track. The **settling time** of often significant, e.g., 0.5 to 2 ms, as the drive must be certain to find the right track.
+
+After the seek, the disk arm has positioned the head over the right track. 
+
+![Three Tracks Plus A Head (Right: With Seek)](disk_multiple_track.png)
+
+As we can see, during the seek, the arm has been moved to the desired track, and the platter of course has rotated, in this case about 3 sectors. Thus, sector 9 is just about to pass under the disk head, and we must only endure a short rotational delay to complete the transfer.
+
+When sector 11 passes under the disk head, the final phase of I/O will take place, known as the **transfer**, where data is either read from or written to the surface. ANd thus, we have a complete picture of I/O time: first a seek, then waiting for the rotational delay, and finally the transfer.
+
+**Some other details**
+
+Finally an important part of nay modern disk drive is its **cache**. This cache is just some small amount of memory which the drive can use to hold data read from or written to the disk. For example, when reading a sector from the disk, the drive might decide to read in all of the sectors on that track and cache them in its memory; doing so allows the drive to quickly respond to any subsequent requests to the same track.
+
+On writes, the drive has a choice: should it acknowledge the write has completed when it has put the data it in its memory, or after the write has actually been written to disk? The former is called **write back** caching, and the latter **write through**. Write back caching sometimes makes the drive appear "faster", but can be dangerous. 
+
+## File System Implementation
+### Overall Organization
+We now develop the overall on-disk organization of the data structure of the vsfs file system. The first thing we'll need to do is divide the disk into blocks; simple file systems use just one block size, and that's exactly what we'll do here. Let's choose a commonly-used size of 4KB.
+
+Thus, our view of the disk partition where we're building our file system is simple: a series of blocks, each of size 4KB. The blocks are addressed from *`0`* to *`N - 1`*, in a partition of size *`N`* 4-KB blocks. Assume we have a really small disk, with just 64 blocks.
+
+Let's now think about what we need to store in these blocks to build a file system. Of course, the first thing that comes to mind is user data. In fact, most of the space in any file system is (and should be) user data. Let's call the region of the disk we use for user data the **data region**, again for simplicity, reserve a fixed portion of the disk for these blocks, say the last 56 of 64 blocks on the disk.
+
+the file system has to track information about each file. This information is a key piece of **metadata**, and tracks things like which data blocks (in the data region) comprise a file, the size of the file, its owner and access rights, access and modify times, and other similar kinds of information. To store this information, file systems usually have a structure called an **inode**.
+
+To accommodate inodes, we'll need to reserve some space on the disk for them as well. Let's call this portion of the disk the **inode table**, which simply holds an array of on-disk inodes.
+
+We should note here that inodes are typically not that big, for example 128 or 256 bytes. Assuming 256 bytes per inode, a 4-KB block can hold 16 inodes, and our file system above contains 80 total inodes. In our simple file system, built on a tiny 64-block partition, this number represents the maximum number of files we can have in our file system.
+
+Our file system thus far has data blocks (D), and inodes (I), but a few things are still missing. One primary component that is still needed, as you might have guessed, is some way to track whether inodes or data blocks are free or allocated.
+
+We instead choose a simple and popular structure known as a **bitmap**, one for the data region (the **data bitmap**), and one for the inode table (the **inode bitmap**). A bitmap is a simple structure: each bit is used to indicate whether the corresponding object/block is free (0) or in-use (1).
+
+![File System Data Structure](file_system_data_structure.png)
+
+The careful reader may have noticed there is one block left in the design of the on-disk structure of our very simple file system. We reserve this for the **superblock**, denoted by an S in the diagram below. The superblock contains information about this particular file system, including, for example, how many inodes and data blocks are in the file system (80 and 56, respectively in this instance), where the inode table begins (block 3), and so forth. It will likely also include a magic number of some kind to identify the file system type (in this case, vsfs).
+
+## Crash Consistency: FSCK and Journaling
 ### A detailed example
 We need to use a **workload** that updates on-disk structures in some way. Assume here that the workload is simple: the append of a single data block to an existing file. The append is accomplished by opening the file, calling `lseek()` to move the file offset to the end of the file, and then issue a 4KB write to the file before closing it.
 
