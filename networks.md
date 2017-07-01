@@ -492,7 +492,9 @@ we see that in order for a datagram to go from 111.111.111.111 to a host on Subn
 #### Ethernet
 Ethernet has pretty much taken over the wired LAN market.
 
-For now, we only mention that a switch is not only "collision-less" but is also a bona-fide store-and-forward packet switch; but unlike routers, which operate up through layer 3, a switch operates only up through layer 2.
+By the late 1990s, most companies and universities had replaced their LANs with Ethernet installations using a hub-based star topology. In such an installation the hosts (and routers) are directly connected to a hub with twisted-pair copper wire. A **hub** is a physical-layer device that acts on individual bits rather than frames. When a bit, representing a zero or a one, arrives from one interface, the hub simply re-creates the bit, boosts its energy strength, and transmits the bit onto all the other interfaces. Thus, Ethernet with a hub-based star topology is also a broadcast LAN - whenever a hub receives a bit from one of its interfaces, it sends a copy out on all of its other interfaces. In particular, if a hub receives frames from two different interfaces at the same time, a collision occurs and the nodes that created the frames must retransmit.
+
+In the early 2000s Ethernet experienced yet another major evolutionary change. Ethernet installations continued to use a star topology, but the hub at the center was replaced with a **switch**. For now, we only mention that a switch is not only "collision-less" but is also a bona-fide store-and-forward packet switch; but unlike routers, which operate up through layer 3, a switch operates only up through layer 2.
 
 **Ethernet Frame Structure**
 
@@ -527,8 +529,12 @@ A switch has the wonderful property that its table is built automatically, dynam
 1. The switch table is initially empty.
 2. For each incoming frame received on an interface, the switch stores in its table (1) the MAC address in the frame's source address field, (2) the interface from which the frame arrived, and (3) the current time. In this manner the switch records in its table the LAN segment on which the sender resides. If every host
 in the LAN eventually sends a frame, then every host will eventually get recorded in the table.
-3. The switch deletes an address in the table if no frames are received with that
-address as the source address after some period of time (the **aging time**).
+3. The switch deletes an address in the table if no frames are received with that address as the source address after some period of time (the **aging time**).
+
+**Properties of Link-Layer Switching**
+
+We can identify several advantages of using switches, rather than broadcast links such as buses or hub-based star topologies:
+- *Elimination of collisions*. In a LAN built from switches (and without hubs), there is no wasted bandwidth due to collisions! The switches buffer frames and never transmit more than one frame on a segment at any one time. 
 
 **Switches Versus Routers**
 
