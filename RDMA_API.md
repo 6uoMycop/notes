@@ -31,6 +31,12 @@ Multicast messages are supported (one to many).
 
 A UD connection is very similar to a UDP connection.
 
+### Key Concepts
+#### Global Routing Header (GRH)
+The GRH is used for routing between subnets. When using RoCE, the GRH is used for routing inside the subnet and therefore is a mandatory. The use of the GRH is mandatory in order for an application to support both IB and RoCE.
+
+When global routing is used on UD QPs, there will be a GRH contained in the first 40 bytes of the receive buffer.
+
 ## VPI Verbs API
 ### Verb Context Operations
 #### ibv_create_cq
@@ -106,3 +112,10 @@ int ibv_poll_cq(struct ibv_cq *cq, int num_entries, struct ibv_wc *wc)
 **Description**
 
 `ibv_poll_cq` retrieves CQEs from a completion queue (CQ). The user should allocate an array of struct ibv_wc and pass it to the call in wc.
+
+## Events
+### IBV WC Events
+#### IBV_WC_SUCCESS
+The Work Request completed successfully.
+
+> In RC QP, a CQE with successful status of a Send Request means that an ACK was received by the sender. However, In UC QP, a CQE with successful status of a Send Request means that the message was sent; it isn't indicate that the message was received by the remote side ... (You will get a successful CQE even if the remote side didn't receive this message)
