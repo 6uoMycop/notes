@@ -1,0 +1,95 @@
+# InfiniBand, iWARP, and RoCE
+## IB network
+### Network Topology
+The IBA network is comprised of multiple subnets that can be connected through routers.
+
+### Subnet Components
+#### Channel Adapters
+IBA defines two types of adapters that reside in servers or I/O systems. If the adapter resides in the host system (e.g., servers), it is called a Host Channel Adapter (HCA).
+
+A Channel Adapter provides connectivity for operating systems and applications to physical ports. An HCA provides an interface to the operating system and provides all the verb interfaces defined by IB. Verb is an abstract interface between the application and the functionality provided by a Channel Adapter. Each adapter can have one or multiple ports.
+
+![IB Channel Adapter.](ib_channel_adapter.png)
+
+A Channel Adapter carries a unique address called a globally unique identifier (GUID). Each port of the adapter is also assigned a unique identifier, a Port GUID. GUIDs are assigned by the adapter vendor. The management entity for a given subnet, called the subnet manager (SM), assigns local identifiers (LIDs) to each port of a Channel Adapter.
+
+#### Switches
+A switch contains multiple IB ports. It forwards packets between adapter ports based on the destination address in the local routing header (LRH) of each packet. Switches forward a unicast packet to a single destination port and multicast packets to multiple ports as configured in their forwarding database. The forwarding database used by a switch is configured by the SM. Switches just forward the packets - they do not modify packets' headers.
+
+#### Routers
+Similar to switches, routers forward packets from source to destination. However, routers forward packets based on the global routing header (GRH). They modify the LRH while forwarding from one subnet to another subnet. Each subnet is identified with a subnet prefix. Routers exchange routing information using protocols specified by IPv6.
+
+The source node specifies the LID of the router and global identifier (GID) of the destination that packet is being sent to. Each router forwards packets to the next router using subnet information and routing tables. Routing is performed until the packet reaches the destination subnet. The last router forwards packets to the final destination using the local ID associated with the destination GID.
+
+#### Subnet manager
+The SM configures local components in subnet. It provides LIDs to all the nodes in the subnet, and it also provides forwarding information to switches in the subnet. SMs communicate to all the nodes within the subnet via subnet management agents (SMAs). Each IB node is required to implement SMA.
+
+## Communication mechanisms
+### Addressing
+IB communication among nodes requires unique identification for each addressable entity (node, card, port, queue pair (QP) within a port, etc.) so that packets can be delivered appropriately. Such packets could be part of communication within a subnet or they could belong to flows that cross subnets through a router. Flows could be unicast where communication is between exactly two addressable entities. Multicast flows are used for communication between multiple entities.
+
+*LID*: A LID is a 16-bit unicast or multicast identifier and is unique within a subnet; it cannot be used to route between subnets. A LID is assigned by an SM. LIDs are contained within the LRH of each packet.
+
+*GID*: A GID is a 128-bit unicast or multicast address and is unique globally - which allows it to be used for routing packets across subnets. A GID is a valid IPv6 address with additional restrictions defined by the IBA. GID assignment ranges from default assignment (calculated from the manufacturer-assigned identifier) to an address assigned by the SM.
+
+*Unicast identifier*: A unicast LID or GID identifies a single addressable entity. A packet addressed to the unicast identifier will be delivered to a single end port.
+
+*Multicast identifier*: A multicast LID or GID identifies a set of addressable end ports. A packet sent to a multicast identifier must be delivered to all the end ports that are part of that identifier.
+
+### Packet Formats
+IBA packets: IB packets that carry transport headers are routed on IBA fabrics and use native IBA transport facilities.
+
+![IB packet formats.](ib_packet_format.png)
+
+All the packets require a local route header (8 bytes). This header is used for forwarding the packets within a local subnet.
+
+A GRH (40 bytes) is required for all the packets that need to be routed to a different subnet and on all multicast packets. The link next header field in the LRH indicates the presence of a GRH header in a packet.
+
+## Layered architecture
+Layered architecture allows solutions to be built with different components that can interoperate with flexibility of implementation, yet with correctness of operation due to well-defined interfaces between layers. It also provides architectural clarity and separation for different functional blocks in systems, which helps applications to communicate with each other over a variety of protocols, networks, and physical connectivity options. This provides a variety of possible application deployments without requiring top-to-bottom change to the implementation. One can run a system over copper or fiber cable with a change in physical media without requiring a change in any of the protocols above the physical layer. Similarly, one could run the application within a subnet or across multiple subnets without the application being aware of network separation between the communicating systems.
+
+### Physical Layer
+The physical layer defines how actual bits flow on physical connectivity between systems. Systems can be connected to each other over backplane or over fiber or copper media.
+
+The physical layer is responsible for receiving (control and data) bytes from the link layer, sending them in electrical or optical form to the link peer, and then delivering the received bytes to the link layer at the receiver. It provides transparency to the link layer about the actual physical media that connects to the link peer.
+
+### Link Layer
+#### Packet forwarding
+The link layer defines forwarding of packets within an IBA subnet.
+
+Within a subnet, packets are forwarded using LIDs. These identifiers are configured at a device by the SM. Switches use the destination LID to look up the destination port to which a given packet needs to be forwarded.
+
+### Network Layer
+The network layer provides routing across multiple subnets. It specifies forwarding of unicast and multicast packets across IBA subnets. Such routing can be accomplished by routers conforming to IBA as well as non-IBA (e.g., IP) specifications.
+
+The fields provided in the GRH can be used for such routing. Typically, these fields include SGID, DGID, TClass, and flow label (these could easily be mapped into the IPv6 vocabulary, and this is intentional). Source Global Identifier (SGID) and Destination Global Identifier (DGID) are 128-bit fields that can be mapped to a IPv6 addresses. Routing works very similar to IP routing where the Destination Local Identifier (DLID) within a source subnet will be mapped to a local router address, and the destination router will make sure that the packet is delivered to the destination node by changing the DLID of the packet to the final destination port in that subnet.
+
+### Transport Layer
+The transport layer provides an interface for upper layer protocols (ULPs) (and applications) to communicate within and across subnets over network layer using a QP for send and receive operations. It is responsible for delivering a data payload from the source end node to the destination end node using the delivery characteristics desired by the application (e.g., reliable versus unreliable and connection versus datagram). The transport layer delivers packets to the right QP based on the information in the transport header.
+
+## RDMA over converged Ethernet (RoCE)
+RoCE is a protocol that tunnels IB packets over Ethernet. It maintains most of the layers intact and uses the Ethernet L2 layer as the physical and link layers.
+
+### Layer Architecture
+![Layer comparison between IB and RoCE.](ib_roce_layer_comparison.png)
+
+RoCE maintains all the layers except the link, MAC, and physical layers.
+
+RoCE achieves the following goals through this modification:
+1. Uses DCB (lossless Ethernet) as Layer 2 network to provide physical connectivity.
+2. No change to applications that are using RDMA as the ULP interface is maintained unchanged.
+3. Maintains existing IB transport constructs and services (RC, UC, RD, etc.)
+
+![IB and RoCE packet format comparison.](ib_roce_packet_comparison.png)
+
+### Packet Formats
+RoCE tunnels most of the IB packet into an Ethernet packet. The Ethernet header provides similar functionality to the IB LRH. It allows Ethernet nodes to communicate with each other in a given subnet. So the RoCE packet does not include the LRH in the tunneled Ethernet packet. LRH fields are mapped into equivalent Ethernet header fields.
+
+### Header And Address Mapping
+Ethernet has a similar header structure as to the IB LRH.
+
+![IB header mapping for RoCE.](ib_roce_header_mapping.png)
+
+As the IB packet gets mapped into the Ethernet format, LRH fields are replaced with the Ethernet L2 header. DLID and SLID are replaced with 6-byte Ethernet MAC addresses. (IB allows information about subnet LIDs to be accessed by ULPs through a verb interface. Since RoCE does not carry LRH, these LIDs are not carried through the interface.)
+
+MAC addresses are generated and used through normal Ethernet methods (each end point has its assigned MAC address). The association of a GID to a MAC address is left to implementation (through well-known mechanisms similar to ARP, neighbor discovery, etc.)
