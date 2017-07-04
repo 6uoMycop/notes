@@ -45,7 +45,7 @@ A qcow2 image file is organized in units of constant size, which are called (hos
 
 Likewise, the virtual disk as seen by the guest is divided into (guest) clusters of the same size.
 
-qcow2 uses a two-level structure for the mapping of guest clusters to host clusters. They are called L1 and L2 table.
+qcow2 uses a two-level structure for the mapping of guest clusters to host clusters. They are called L1 and L2 table. In order to read or write data from the virtual disk, QEMU needs to read its corresponding L2 table to find out where that data is located. Since reading the table for each I/O operation can be expensive, QEMU keeps an L2 cache in memory to speed up disk access.
 
 Given a offset into the virtual disk, the offset into the image file can be obtained as follows:
 ```
