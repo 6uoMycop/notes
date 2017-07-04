@@ -1,0 +1,56 @@
+### What is a process's signal disposition?
+For each process, each signal has a disposition which means what action will occur when a signal is delivered to the process. 
+
+>  The signal disposition is a per-process attribute: in a multithreaded application, the disposition of a particular signal is the same for all threads.
+
+For example, the default disposition SIGINT is to terminate it. The signal disposition can be changed by calling signal() or sigaction. You can imagine the processes' disposition to all possible signals as a table of function pointers entries (one for each possible signal).
+
+### What happens when creating a new thread?
+The new thread inherits a copy of the calling thread's mask
+
+> Each thread in a process has an independent signal mask, which indicates the set of signals that the thread is currently blocking.
+
+```C
+pthread_sigmask( ... ); // set my mask to block delivery of some signals
+pthread_create( ... ); // new thread will start with a copy of the same mask
+```
+
+### How do I block signals in a single-threaded program?
+Use sigprocmask!
+```C
+int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+```
+It is a common error to forget to initialize the signal set before modifying one bit. For example,
+```C
+sigset_t set, oldset;
+sigaddset(&set, SIGINT); // Ooops!
+sigprocmask(SIG_SETMASK, &set, &oldset)
+```
+Correct code initializes the set to be all on or all off. For example,
+```C
+sigfillset(&set); // all signals
+sigprocmask(SIG_SETMASK, &set, NULL); // Block all the signals!
+// (Actually SIGKILL or SIGSTOP cannot be blocked...)
+
+sigemptyset(&set); // no signals 
+sigprocmask(SIG_SETMASK, &set, NULL); // set the mask to be empty again
+```
+
+### How do I block signals in a multi-threaded program?
+Blocking signals is similar in multi-threaded programs to single-threaded programs:
+- Use pthread_sigmask instead of sigprocmask
+
+The easiest method to ensure a signal is blocked in all threads is to set the signal mask in the main thread before new threads are created
+```C
+sigemptyset(&set);
+sigaddset(&set, SIGQUIT);
+sigaddset(&set, SIGINT);
+pthread_sigmask(SIG_BLOCK, &set, NULL);
+
+// this thread and the new thread will block SIGQUIT and SIGINT
+pthread_create(&thread_id, NULL, myfunc, funcparam);
+```
+### How are pending signals delivered in a multi-threaded program?
+A signal is delivered to any signal thread that is not blocking that signal.
+
+If the two or more threads can receive the signal then which thread will be interrupted is arbitrary!
