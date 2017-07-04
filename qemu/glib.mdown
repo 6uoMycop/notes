@@ -1,0 +1,211 @@
+# GLib Reference Manual
+## GLib Overview
+### Compiling GLib Application
+**Compiling GLib Applications on UNIX**
+
+To compile a GLib application, you need to tell the compiler where to find the GLib header files and libraries. This is done with the pkg-config utility.
+```
+$ pkg-config --cflags glib-2.0
+-I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include
+$ pkg-config --libs glib-2.0
+-lglib-2.0
+```
+The simplest way to compile a program is to use the "backticks" feature of the shell. If you enclose a command in backticks (not single quotes), then its output will be substituted into the command line before execution. So to compile a GLib Hello, World, you would type the following:
+```
+$ cc `pkg-config --cflags --libs glib-2.0` gqueue.c -o gqueue
+```
+
+## GLib Core Application Support
+### The Main Event Loop
+**Description**
+
+These events can come from any number of different types of sources such as file descriptors (plain files, pipes or sockets) and timeouts. New types of event sources can also be added using g_source_attach().
+
+To allow multiple independent sets of sources to be handled in different threads, each source is associated with a GMainContext. A GMainContext can only be running in a single thread.
+
+GMainLoop is a convenient, thread-safe way of running a GMainContext to process events until a desired exit condition is met, at which point g_main_loop_quit() should be called.
+
+It is important not to confuse main contexts with main loops. Main contexts do the bulk of the work: preparing source lists, waiting for events, and dispatching callbacks. A main loop simply iterates a context.
+
+```C
+static void
+test_timeouts (void)
+{
+    GMainContext *ctx;
+    GMainLoop *loop;
+    GSource *source;
+
+    a = b = c = 0;
+
+    ctx = g_main_context_new ();
+    loop = g_main_loop_new (ctx, FALSE);
+
+    source = g_timeout_source_new (100);
+    g_source_set_callback (source, count_calls, &a, NULL);
+    g_source_attach (source, ctx);
+    g_source_unref (source);
+
+    source = g_timeout_source_new (250);
+    g_source_set_callback (source, count_calls, &b, NULL);
+    g_source_attach (source, ctx);
+    g_source_unref (source);
+
+    source = g_timeout_source_new (330);
+    g_source_set_callback (source, count_calls, &c, NULL);
+    g_source_attach (source, ctx);
+    g_source_unref (source);
+
+    source = g_timeout_source_new (1050);
+    g_source_set_callback (source, (GSourceFunc)g_main_loop_quit, loop, NULL);
+    g_source_attach (source, ctx);
+    g_source_unref (source);
+
+    g_main_loop_run (loop);
+
+    /* We may be delayed for an arbitrary amount of time - for example,
+     * it's possible for all timeouts to fire exactly once.
+     */
+    g_assert_cmpint (a, >, 0);
+    g_assert_cmpint (a, >=, b);
+    g_assert_cmpint (b, >=, c);
+
+    g_assert_cmpint (a, <=, 10);
+    g_assert_cmpint (b, <=, 4);
+    g_assert_cmpint (c, <=, 3);
+
+    g_main_loop_unref (loop);
+    g_main_context_unref (ctx);
+}
+```
+
+### IO Channels
+```C
+#include <glib.h>
+
+static void handle_error(GError *);
+
+int main(int argc, char const *argv[])
+{
+    gchar *filename, *content;
+    GError *error = NULL;
+    gsize bytes;
+
+    /* Build a filename in the user's home directory */
+    filename = g_build_filename(g_get_home_dir(), "tmp", NULL);
+
+    /* set the contents of the given file and report any errors. */
+    GIOChannel *write;
+    write = g_io_channel_new_file(filename, "w", &error);
+    handle_error(error);
+    g_io_channel_write_chars(write, "Hello World!", -1, &bytes, NULL);
+    g_io_channel_close(write);
+
+    if (!g_file_test(filename, G_FILE_TEST_EXISTS))
+    {
+        g_error("Error: File does not exist\n");
+    }
+
+    /* Get the contents of the given file and report any errors */
+    GIOChannel *read;
+    read = g_io_channel_new_file(filename, "r",&error);
+    handle_error(error);
+    /* GIOChannel provides functions for reading a single character,
+     * a whole line, or a whole file. When dealing with files,
+     * g_io_channel_read_to_end() can be used to read the entire contents
+     * of the file */
+    g_io_channel_read_to_end(read, &content, &bytes, NULL);
+    g_print("%s\n", content);
+
+    g_io_channel_close(read);
+    g_free(content);
+    g_free(filename);
+
+    return 0;
+}
+
+static void handle_error(GError *error)
+{
+    if (error != NULL)
+    {
+        g_print(error->message);
+        g_clear_error(&error);
+    }
+}
+```
+The `GIOChannel` structure allows you to handle files, pipes, and sockets.
+
+## GLib Data Types
+### Doubly-linked Lists
+```C
+#include <glib.h>
+
+GQueue pkt_queue;
+
+typedef struct Packet {
+    void *data;
+    int size;
+    struct timeval created_time;
+} Packet;
+
+void *g_memdup(const void *ptr, unsigned size)
+{
+    unsigned char *dup;
+    unsigned i;
+
+    if (!ptr) {
+        return NULL;
+    }
+
+    dup = g_malloc(size);
+    for (i = 0; i < size; i++)
+        dup[i] = ((unsigned char *)ptr)[i]; // dup[i] = *(dup + i)
+    return dup;
+}
+
+Packet *packet_new(const void *data, int size)
+{
+    Packet *pkt = g_slice_new(Packet);
+
+    pkt->data = g_memdup(data, size);
+    pkt->size = size;
+    gettimeofday(&pkt->created_time, NULL);
+    return pkt;
+}
+
+static int packet_enqueue(uint8_t *buf, uint32_t packet_len)
+{
+    Packet *pkt = NULL;
+
+    pkt = packet_new(buf, packet_len);
+
+    // mutex_lock
+    g_queue_push_tail(&pkt_queue, pkt);
+    // mutex_unlock
+}
+
+void packet_destroy(Packet *pkt)
+{
+    g_free(pkt->data);
+    g_slice_free(Packet, pkt);
+}
+
+static void packet_dequeue()
+{
+    Packet *pkt = NULL;
+
+    // mutex_lock
+    while (!g_queue_is_empty(&pkt_queue)) {
+        pkt = g_queue_pop_head(&pkt_queue);
+
+        packet_destroy(pkt);
+    }
+    // mutex_unlock
+}
+
+int main(int argc, char const *argv[])
+{
+    g_queue_init(&pkt_queue);
+    // mutex_init
+    return 0;
+}
+```
