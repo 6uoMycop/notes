@@ -56,6 +56,115 @@ Finally an important part of nay modern disk drive is its **cache**. This cache 
 
 On writes, the drive has a choice: should it acknowledge the write has completed when it has put the data it in its memory, or after the write has actually been written to disk? The former is called **write back** caching, and the latter **write through**. Write back caching sometimes makes the drive appear "faster", but can be dangerous. 
 
+## Interlude: Files and Directories
+### Files and Directories
+Two key abstractions have developed over time in the virtualization of storage. The first file is the **file**. A file is simply a linear of bytes, each of which you can read or write. Each file has some kind of **low-level name**, usually a number of some kind. For historical reasons, the low-level name of a file is often referred to as its **inode number**. for now, just assume that each file has an inode number associated with it.
+
+In most systems, the OS does not know much about the structure of the file (e.g., whether it is a picture, or a text file, or a text file, or C code); rather, the responsibility of the file system is simply to store such data persistently on disk and make sure that when you request the data again, you get what you put there in there in the first place.
+
+The second abstraction is that of a **directory**. A directory, like a file, also has a **low-level name** (i.e., an inode number), but its contents are quite specific: it contains a list of (user-readable name, low-level name) pairs. For example, let's say there is a file with the low-level name "10", and it is referenced to by the user-readable name of "foo". The directory that "foo" resides in thus would have an entry ("foo", "10") that maps the user-readable name to the low-level name. Each entry in a directory refers to either files or directories. By placing directories within other directories, users are able to build an arbitrary **directory tree**, under which all files and directories are stored.
+
+### Removing Files
+If you've used UNIX, you probably think you know: just run the program `rm`. But what system call does `rm` use to remove a file?
+
+Let's use our old friend `strace` again to find out. Here we remove that pesky file "foo":
+```
+prompt> strace rm foo
+...
+unlink("foo")                          = 0
+...
+```
+We've removed a bunch of unrelated cruft from the traced output, leaving just a single call to the mysteriously-named system call `unlink()`. As you can see, `unlink()` just takes the name of the file to be removed, and returns zero upon success. But this leads us to a great puzzle: why is this system call named "unlink"? Why not just "remove" or "delete".
+
+### Hard Links
+We now come back to the mystery of why removing a file is performed via `unlink()`, by understanding a new way to make an entry in the file system tree, through a system call known as `link()`. The `link()` system call takes two arguments, an old pathname and a new one; when you "link" a new file name to an old one, you essentially create another way to refer to the same file. The command-line program `ln` is used to do this, as we see in this example:
+```
+prompt> echo hello > file
+prompt> cat file
+hello
+prompt> ln file file2
+prompt> cat file2
+hello
+```
+Here we created a file with the word "hello" in it, and called the file `file`. We then create a hard link to that file using the `ln` program. After this, we can examine the file by either opening `file` or `file2`.
+
+The way link works is that it simply creates another name in the directory you are creating the link to, and refers it to the *same* inode number (i.e., low-level name) of the original file. The file is not copied in any way; rather, you now just have two human names (`file` and `file2`) that both refer to the same file. We can even see this in the directory itself, by printing out the inode number of each file:
+```
+prompt> ls -i file file2
+67158084 file
+67158084 file2
+prompt>
+```
+By passing the `-i` flag to `ls`, it prints out the inode number of each file (as well as the file name). And thus you can see what link really has done: just make a new reference to the same exact inode number (67158084 in this example).
+
+By now you might be starting to see why `unlink()` is called `unlink()`. When you create a file, you are really doing *two* things. First, you are making a structure (the inode) that will track virtually all relevant information about the file, including its size, where its blocks are on disk, and so forth. Second, you are *linking* a human-readable name to that file, and putting that link into a directory.
+
+After creating a hard link to a file, to the file system, there is no difference between the original file name (`file`) and the newly created file name (`file2`); indeed, they are both just links to the underlying metadata about the file, which is found in inode number 67158084.
+
+Thus, to remove a file from the file system, we call `unlink()`.
+
+In the example above, we could for example remove the file named `file`, and still access the file without difficulty:
+```
+prompt> rm file
+removed 'file'
+prompt> cat file2
+hello
+```
+The reason this works is because when the file system unlinks file, it checks a **reference count** within the inode number. This reference count allows the file system to track how many different file names have been linked to this particular inode. When `unlink()` is called, it removes the "link" between the human-readable name (the file that is being deleted) to the given inode number, and decrements the reference count; only when the reference count reaches zero does the file system also free the inode and related data blocks, and thus truly "delete" the file.
+
+### Symbolic Links
+There is one other type of link that is really useful, and it is called a **symbolic link** or sometimes a **soft link**.
+
+To create such a link, you can use the same program `ln`, but with the `-s` flag. Here is an example:
+```
+prompt> echo hello > file
+prompt> ln -s file file2
+prompt> cat file2
+hello
+```
+As you can see, creating a soft link looks much the same, and the original file can now be accessed through the file name `file` as well as the symbolic link name `file2`.
+
+However, beyond this surface similarity, symbolic links are actually quite different from hard links. The first difference is that a symbolic link is actually a file itself, of a different type. We've already talked about regular files and directories; symbolic links are a third type the file system knows about.
+
+Running `ls` also reveals this fact. If you look closely at the first character of the long-form of the output from `ls`, you can see that the first character in the left-most column is a - for regular files, a `d` for directories, and an `l` for soft links. You can also see the size of the symbolic link (4 bytes in this case), as well as what the link points to (the file named `file`).
+```
+prompt> ls -al
+drwxr-x--- 2  remzi remzi   29 May 3 19:10 ./
+drwxr-x--- 27 remzi remzi 4096 May 3 15:14 ../
+-rw-r----- 1  remzi remzi    6 May 3 19:10 file
+lrwxrwxrwx 1  remzi remzi    4 May 3 19:10 file2 -> file
+```
+The reason that `file2` is 4 bytes is because the way a symbolic link is formed is by holding the pathname of the linked-to file as the data of the link file. Because we've linked to a file named `file`, our link file `file2` is small (4 bytes). If we link to a longer pathname, our link file would be bigger:
+```
+prompt> echo hello > alongerfilename
+prompt> ln -s alongerfilename file3
+prompt> ls -al alongerfilename file3
+-rw-r----- 1 remzi remzi  6 May 3 19:17 alongerfilename
+lrwxrwxrwx 1 remzi remzi 15 May 3 19:17 file3 -> alongerfilename
+```
+Finally, because of the way symbolic links are created, they leave the possibility for what is known as a **dangling reference**:
+```
+prompt> echo hello > file
+prompt> ln -s file file2
+prompt> cat file2
+hello
+prompt> rm file
+prompt> cat file2
+cat: file2: No such file or directory
+```
+As you can see in this example, quite unlike hard links, removing the original file named `file` causes the link to point to a pathname that no longer exists.
+
+### Making and Mounting a File System
+To make a file system, most file systems provide a tool, usually referred to as `mkfs`, that performs exactly this task. The idea is as follows: give the tool, as input, a device (such a disk partition, e.g., `/dev/sda1`) a file system type (e.g., ext3), and it simply writes an empty file system, starting with a root directory, onto that disk partition. And mkfs said, let there be a file system.
+
+However, once such a file system is created, it needs to be made accessible within the uniform file-system tree. This task is achieved via the `mount` program. What mount does, quite simply is take an existing directory as a target **mount point** and essentially paste a new file system onto the directory at that point.
+
+Imagine we have an unmounted ext3 file system, stored in device partition `/dev/sda1`, that has the following contents: a root directory which contains two sub-directories, `a` and `b`, each of which in turn holds a single file named `foo`. Let's say we wish to mount this file system at the mount point `/home/users`. We would type something like this:
+```
+prompt> mount -t ext3 /dev/sda1 /home/users
+```
+If successful, the mount would thus make this new file system available.
+
 ## File System Implementation
 ### Overall Organization
 We now develop the overall on-disk organization of the data structure of the vsfs file system. The first thing we'll need to do is divide the disk into blocks; simple file systems use just one block size, and that's exactly what we'll do here. Let's choose a commonly-used size of 4KB.
@@ -77,6 +186,24 @@ We instead choose a simple and popular structure known as a **bitmap**, one for 
 ![File System Data Structure](file_system_data_structure.png)
 
 The careful reader may have noticed there is one block left in the design of the on-disk structure of our very simple file system. We reserve this for the **superblock**, denoted by an S in the diagram below. The superblock contains information about this particular file system, including, for example, how many inodes and data blocks are in the file system (80 and 56, respectively in this instance), where the inode table begins (block 3), and so forth. It will likely also include a magic number of some kind to identify the file system type (in this case, vsfs).
+
+### File Organization: The Inode
+Each inode is implicitly referred to by a number (called the **inumber**), which we've earlier called the **low-level** name of the file. In vsfs (and other simple file systems), given an i-number, you should directly be able to calculate where on the disk the corresponding inode is located.
+
+To read inode number 32, the file system would first calculate the offset into the inode region (`32 * sizeof(inode)`), add it to the start address of the inode table on disk (`inodeStartAddr = 12KB`), and thus arrive upon the correct byte address of the desired block of inodes: 20KB. Recall that disks are not byte addressable, but rather consist of a large number of addressable sectors, usually 512 bytes. Thus, to fetch the block of inodes that contains inode 32, the file system would issue a read to sector `20 * 1024 / 512` to fetch the desired inode block.
+
+### Access Paths: Reading and Writing
+**Reading A File From Disk**
+
+In this simple example, let us first assume that you want to simply open a file (e.g., `/foo/bar`).
+
+When you issue an `open("/foo/bar", O_RDONLY)` call, the file system first needs to find the inode for the file `bar`, to obtain some basic information about the file (permissions information, file size, etc.). To do so, the file system must be able to find the inode, but all it has right now is the full pathname. The file system must **traverse** the pathname and thus locate the desired inode.
+
+All traversals begin at the root of the file system, in the **root directory** which is simply called /. Thus, the first thing the FS will read from disk is the inode of the root directory. But where is this inode? To find an inode, we must know its i-number. Usually, we find the i-number of a file or directory in its parent directory; the root has no parent (by definition). Thus, the root inode number must be "well known"; the FS must know what it is when the file system is mounted. In most UNIX file systems, the root inode number is 2. Thus, to begin the process, the FS reads in the block that contains inode number 2 (the first inode block).
+
+Once the inode is read in, the FS can look inside of it to find pointers to data blocks, which contain the contents of the root directory. The FS will thus use these on-disk pointers to read through the directory, in this case looking for an entry for `foo`. By reading in one or more directory data blocks, it will find the entry for `foo`; once found, the FS will also have found the inode number of `foo` (say it is 44) which it will need next.
+
+The next step is to recursively traverse the pathname until the desired inode is found. In this example, the FS reads the block containing the inode of `foo` and then its directory data, finally finding the inode number of `bar`. The final step of `open()` is to read `bar`'s inode into memory; the FS then does a final permissions check, allocates a file descriptor for this process in the per-process open-file table, and returns it to the user.
 
 ## Crash Consistency: FSCK and Journaling
 ### A detailed example

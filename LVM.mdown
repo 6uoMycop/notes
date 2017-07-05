@@ -1,0 +1,23 @@
+# LVM (Logical Volume Manager)
+## The Basics
+![LVM](lvm.png)
+
+## The Details
+## So how do I start using LVM?
+First, you need a Physical Volume. Typically you start with a hard disk, and create an LVM type partition on it. You can create one with fdisk, and usually only want one partition to use the whole disk, since LVM will handle subdividing it into Logical Volumes. You need to check the lvm flag when creating the partition, and with fdisk, tag the type with code 8e.
+
+Once you have your LVM partition, you need to initialize it as a Physical Volume. Assuming this partition is /dev/sda1:
+```
+sudo pvcreate /dev/sda1
+```
+This writes the LVM header to the partition, which identifies it as a Physical Volume, and sets up a small area to hold the metadata describing everything about the Volume Group, and the the rest of the partition as unused Physical Extents. After that, you need to create a Volume Group named foo:
+```
+sudo vgcreate foo /dev/sda1
+```
+Now you have a Volume Group named foo. foo contains only one Physical Volume. Now you want to create a Logical Volume from some of the free space in foo:
+```
+sudo lvcreate -n bar -L 5g foo 
+```
+This creates a Logical Volume named bar in Volume Group foo using 5 GB of space. You can find the block device for this Logical Volume in 'dev/mapper/foo-bar'.
+
+You might also want to try the lvs and pvs commands, which list the Logical Volumes and Physical Volumes respectively.
