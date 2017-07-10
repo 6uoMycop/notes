@@ -124,6 +124,16 @@ prompt: db_stat -m
 The statistics for this cache say that there have been 4,273 requests of the cache, and only 116 of those requests required an I/O from disk. This means that the cache is working well, yielding a 97% cache hit rate.
 
 ### Access Method Operations
+#### Partitioning databases
+You can improve concurrency on your database reads and writes by splitting access to a single database into multiple databases. This helps to avoid contention for internal database pages, as well as allowing you to spread your databases across multiple disks, which can help to improve disk I/O.
+
+While you can manually do this by creating and using more than one database for your data, DB is capable of partitioning your database for you. When you use DB's built-in database partitioning feature, your access to your data is performed in exactly the same way as if you were only using one database; all the work of knowing which database to use to access a particular record is handled for you under the hood.
+
+Only the BTree and Hash access methods are supported for partitioned databases.
+
+You indicate that you want your database to be partitioned by calling DB->set_partition() before opening your database the first time.
+
+There are two ways to indicate what key/data pairs should go on which partition. The second is by providing a callback that returns the number of the partition on which a specified key is placed. 
 
 ### The Berkeley DB Environment
 All applications sharing a database environment share resources such as buffer space and locks.
@@ -440,6 +450,13 @@ Notice that committing a transaction does not necessarily cause data modified in
 Be aware that because your transaction commit caused database modifications recorded in your logs to be forced to disk, your modifications are by default "persistent" in that they can be recovered in the event of an application or system failure. However, recovery time is gated by how much data has been modified since the last checkpoint, so for applications that perform a lot of writes, you may want to run a checkpoint with some frequency.
 
 Note that once you have committed a transaction, the transaction handle that you used for the transaction is no longer valid. To perform database activities under the control of a new transaction, you must obtain a fresh transaction handle.
+
+#### Non-Durable Transactions
+As previously noted, by default transaction commits are durable because they cause the modifications performed under the transaction to be synchronously recorded in your on-disk log files. However, it is possible to use non-durable transactions.
+
+There are several ways to remove the durability guarantee for your transactions:
+- Specify DB_TXN_NOSYNC using the DB->set_flags() method. This causes DB to not synchronously force any log data to disk upon transaction commit. That is, the modifications are held entirely in the in-memory cache and the logging information is not forced to the filesystem for long-term storage.
+- Specify DB_TXN_WRITE_NOSYNC using the DB_ENV->set_flags() method. This causes logging data to be synchronously written to the OS's file system buffers upon transaction commit. The data will eventually be written to disk, but this occurs when the operating system chooses to schedule the activity.
 
 #### Auto Commit
 While transactions are frequently used to provide atomicity to multiple database operations, it is sometimes necessary to perform a single database operation under the control of a transaction. Rather than force you to obtain a transaction, perform the single write operation, and then either commit or abort the transaction, you can automatically group this sequence of events using *auto commit*.
