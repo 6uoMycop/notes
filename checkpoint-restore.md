@@ -1,14 +1,3 @@
-## rsync
-Here is a simple example that copies `/usr/local/` (recursively, in archive mode, using the `-a` swicth) to a remote system:
-```
-% rsync -a /usr/local/ root@remote_host:/usr/local/
-```
-The `-a` switch tells rsync to operate in archive mode. This causes it to operate recursively and preserve permissions, ownership, symbolic links, device files, access times, and so on.
-
-The only problem with this example is that it does not delete any files on the remote system.
-
-This is where the `--delete` switch comes becomes useful. This switch tells rsync to delete any files in the destination directory that are not in the source directory.
-
 ## File Locking
 Advisory locking does not prevent some process from violating the lock; it is up to the programmer to ensure that locks are appropriately acquired and released.
 

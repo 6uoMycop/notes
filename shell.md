@@ -159,6 +159,26 @@ Unix signals (software interrupts) can be sent as asynchronous events to shell s
   trap 'echo "Shell command here";' INT
   ```
 
+### Common external commands
+**Filesystem**
+
+- `pushd`, `popd`<br>
+  This command set is a mechanism for bookmarking working directories, a means of moving back and forth through directories in an orderly manner. A pushdown stack is used to keep track of directory names.
+
+  `pushd dir-name` pushes the path `dir-name` onto the directory stack (to the top of the stack) and simultaneously changes the current working directory to `dir-name`.
+
+  `popd` removes (pops) the top directory path name off the directory stack and simultaneously changes the current working directory to the directory now at the top of the stack.
+
+**Variables**
+
+- `set`<br>
+  One use for this is to toggle option flags which help determine the behavior of the script.
+  
+  Options | Effect
+  ------------ | -------------
+  `-e` | Exit immediately if a command exits with a non-zero status.
+  `-v` | Print each command to stdout before executing it
+
 ## Script Control
 
 ### Generating Signals

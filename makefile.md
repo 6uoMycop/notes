@@ -179,6 +179,11 @@ include $(subst .c,.d,$(SOURCES))
 Here we use a make function, `subst`, to transform the list of source files into a list of dependency filenames. For now, just note that this use replaces the string `.c` with `.d` in each of the words in `$(SOURCES)`.
 
 ## Writing Recipes in Rules
+### Parallel Execution
+GNU `make` knows how to execute several recipes at once. Normally, make will execute only one recipe at a time, waiting for it to finish before executing the next. However, the `-j` option tells make to execute many recipes simultaneously.
+
+If the `-j` option is followed by an integer, this is the number of recipes to execute at once; this is called the number of *job slots*. If there is nothing looking like an integer after the `-j` option, there is no limit on the number of job slots. The default number of job slots is one, which means serial execution (one thing at a time).
+
 ### Errors in Recipes
 After each shell invocation returns, `make` looks at its exit status. If the shell completed successfully (the exit status is zero), the next line in the recipe is executed in a new shell; after the last line is finished, the rule is finished.
 
