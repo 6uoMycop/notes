@@ -1,0 +1,106 @@
+## Optimizing Code with GCC
+### A Whirlwind Tour of Compiler Optimization Theory
+#### Common Subexpression Elimination
+Elimination redundant computations is a standard optimization mechanism because it reduces the number of instructions that a program has to execute in order to arrive at the same result. For example, given an expression whose value is computed only once, each subsequent occurrence of that expression can be eliminated and its value used instead, if the values of the variables in the expression have not changed since first computed. The subsequent occurrences of the expression are called *common subexpressions*.
+```C
+#define STEP 3
+#define SIZE 100
+
+int i, j, k;
+int p[SIZE];
+
+for (i = 0; i < size; ++i)
+{
+    j = 2 * STEP;
+    k = p[i] *j;
+}
+```
+The expression `j = 2 * STEP` in the for loop is a common subexpression because its value is computed before entering the loop and its constituent variable, `STEP` (actually a predefined value), has not changed. Common subexpression elimination (CSE) removes the repeated computation of `j` in the `for` loop. After CSE, the for loop might look like the following:
+```C
+j = 2 * STEP;
+for (i = 0; i < size; ++i)
+{
+    k = p[i] *j;
+}
+```
+#### Constant Folding
+Constant folding is an optimization technique that eliminates expressions that calculate a value that can already be determined when the program is compiled. These are typically calculations that only reference constant values or expressions that reference variables whose values are constant. For example, both of the calculations in the following code fragment could be replaced with a simple assignment statement:
+```
+n = 20 * 40 * 400;
+
+i = 10;
+j = 20;
+ij = i * j;
+```
+In the latter case, the assignments to the variable `i` and `j` could also be eliminated if these variables were not used elsewhere in the code.
+
+#### Copy Propagation Transformations
+Another way to reduce or eliminate redundant computations is to perform copy propagation transformations, which eliminates cases in which values are copied from one location or variable to another in order to simply assign their value another variable. Given an assignment of the form `f=g`, subsequent uses of `f`, called *copies*, use `g` instead. Consider a code fragment such as the following:
+```C
+i = 10;
+x[j] = i;
+y[MIN] = b;
+b = i;
+```
+Copy propagation transformation might result in a fragment that looks like the following:
+```C
+i = 10;
+x[j] = 10;
+y[MIN] = 10;
+b = 10;
+```
+In this example, copy propagation enables the code to assign values from a static location, which is faster than looking up and copying the value of a variable, and also saves time by eliminating assigning a value to a variable that is itself subsequently used only to propagate that value throughout the code.
+
+#### Dead Code Elimination
+*Dead code elimination* (DCE) is the term used for optimizations that remove code that doesn't actually do anything permanent or useful. You might wonder why you'd write this type of source code, but it can easily creep into large, long-lived programs even at the source code level. Much dead code elimination is actually done on intermediate representations of your code, which may contain unnecessary intermediate calculations, simply because they are more generic representation of your source code.
+
+*Unreachable code elimination* is a related optimization that removes code that the compiler can identify as impossible to reach. For example, consider the following sample block:
+```C
+if (i == 10) {
+    ...
+} else {
+    ...
+    if (i == 10) {
+        ...
+    }
+}
+```
+In this example, the nested test for whether `i` is equal to 10 can be eliminated because it can never be reached, since that case would be caught by the first clause of the enclosing `if` construct. Unreachable code elimination is much more likely to occur 
+
+### GCC Optimization Basics
+
+### Architecture-Independent Optimizations
+#### Level 1 GCC Optimizations
+The optimizations listed in the table below are enabled by default when you specify the `-O` or `-O1` optimization options.
+
+Optimization | Description
+------------ | -------------
+`-fcprop-registers` | Attempts to reduce the number of register copy operations performed.
+`-floop-optimize` | Applies several loop-specific optimizations.
+`-ftree-dse` | Performs dead store elimination (DSE) on SSA trees (GCC 4.x only).
+... | ...
+
+Level 1 optimizations comprise a reasonable set of optimizations that include both size reduction and speed enhancement. For example, `-tree-dce` eliminates dead code in applications compiled with GCC 4, thereby reducing the overall code size. Fewer jump instructions means that a program's overall stack consumption is smaller.
+
+#### Level 2 GCC Optimizations
+`-O2` optimization (level 2 optimization) includes all level 1 optimizations plus the additional optimizations listed. Applying these optimizations will lengthen the compile time, but as a result you should see a measureable increase in the resulting code's performance, or, rather, a measureable decrease in execution time.
+
+`-fcse-follow-jumps` and `-fcse-skip-blocks`, as their names suggest, are optimizations performed during the CSE optimization pass described in the first section of this chapter. With `-fcse-follow-jumps`, the optimizer follows jump instructions whose targets are otherwise unreached. For example, consider the following conditional:
+```C
+if (i < 10) {
+    foo();
+} else {
+    bar();
+}
+```
+Ordinarily, if the condition (`i < 10`) is false, CSE will follow the code path and jump to `foo()` to perform the CSE pass. If you specify `-fcse-follow-jumps`, though, the optimizer will not jump to `foo()` but to the jump in the `else` clause ((`bar()`)).
+
+`-fcse-skip-blocks` causes CSE to skip blocks conditionally. Suppose you have an `if` clause with no `else` statement, such as the following:
+```C
+if (i >= 0)
+{
+    j = foo(i);
+}
+bar(j);
+```
+If you specify `-fcse-skip-blocks`, and if, in fact, `i` is negative, CSE will jump to `bar()`, bypassing the interior of the `if` statement. Ordinarily, the optimizer would process the body of the `if` statement, even if `i` tests false.
