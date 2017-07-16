@@ -101,6 +101,22 @@ for i in ${farm_hosts[@]}; do
     #statements
 done
 ```
+### Advanced I/O
+
+**"Here" documents**
+
+- `<< [-]string`<br>
+  redirect input to the temporary file formed by everything up the matching *string* at the start of a line.
+  ```Shell
+  #!/bin/sh
+
+  cat <<EOF
+   This text will be fed to the "cat" program as 
+   standard input.  It will also have variable
+   and command substitutions performed.
+   I am logged in as $USER and today is `date`
+  EOF
+  ```
 
 ### I/O redirection and pipelines
 
@@ -108,6 +124,9 @@ done
 
 - `> filename`<br>
   Standard ouput (file descriptor 1) is redirected to the named file.
+
+- `>> filename`<br>
+  Standard ouput is appended to the named file. The file is created if it does not exist.
 
 **Command pipelines**
 
