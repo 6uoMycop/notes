@@ -56,6 +56,93 @@ Finally an important part of nay modern disk drive is its **cache**. This cache 
 
 On writes, the drive has a choice: should it acknowledge the write has completed when it has put the data it in its memory, or after the write has actually been written to disk? The former is called **write back** caching, and the latter **write through**. Write back caching sometimes makes the drive appear "faster", but can be dangerous. 
 
+## Redundant Arrays of Inexpensive Disks (RAIDs)
+In this chapter, we introduce the **Redundant Array of Inexpensive Disks** better known as **RAID**, a technique to use multiple disks in concert to build a faster, bigger, and more reliable disk system.
+
+Externally, a RAID looks like a disk: a group of blocks one can read or write. Internally, the RAID is a complex beast, consisting of multiple disks, memory (both volatile and non-), and one or more processors to manage the system. A hardware RAID Is very much like a computer system, specialized for the task of managing a group of disks.
+
+RAID offers a number of advantages over a single disk. One advantage is *performance*. Using multiple disks in parallel can greatly speed up I/O times. Another benefit is *capacity*. Large data sets demand large disks. Finally, RAIDs can improve *realizability*; spreading data across multiple disks (without RAID techniques) makes the data vulnerable to the loss of a single disk; with some of **redundancy**, RAIDs can tolerate the loss of a disk and keep operating as if nothing were wrong.
+
+Amazingly, RAIDs provide these advantages **transparently** to systems that use them, i.e., a RAID just looks like a big disk to the host system. The beauty of transparency, of course, is that it enables one to simply replace a disk with a RAID and not change a single line of software; the operating system and client applications continue to operate without modification. In this manner, transparency greatly improves the **deployability** of RAID, enabling users and administrators to put a RAID to use without worries of software compatibility.
+
+### How To Evaluate A RAID
+Specifically, we will evaluate each RAID design along three axes. The first axes is **capacity**; given a set of *N* disks each with *B* blocks, how much useful capacity is available to clients of the RAID? Without redundancy, the answer is *N \* B*; in contrast, if we have a system that keeps two copies of each block (called **mirroring**), we obtain a useful capacity of *(N \* B) / 2*. Different schemes (e.g., party-based ones) tend to fall in between.
+
+The second axis of evaluation is **reliability**. How many disk faults can the given design tolerate?
+
+Finally, the third axis is **performance**. Performance is somewhat challenging to evaluate, because it depends heavily on the workload presented to the disk array. Thus before evaluating performance, we will first present a set of typical workloads that one should consider.
+
+We now consider three important RAID designs: RAID Level 0 (striping), RAID 1 (mirroring), and RAID Level 4/5 (parity-based redundancy).
+
+### RAID Level 0: Striping
+The first RAID level is actually not a RAID level at all, in that there is no redundancy. However, RAID level 0, or **stripping** as it is better known, serves as an excellent upper-bound on performance and capacity and thus is worth understanding.
+
+The simplest form of stripping will **stripe** blocks across the disks of the systems as follows (assume here a 4-disk array):
+
+Disk 0 | Disk 1 | Disk 2 | Disk 3
+------------ | -------------| -------------| -------------
+0 | 1 | 2 | 3
+4 | 5 | 6 | 7
+8 | 9 | 10 | 11
+12 | 13 | 14 | 15
+
+You get the basic idea, spread the blocks of the array across the disks in a round-robin fashion. We call the blocks in the same row a **stripe**; thus, blocks 0, 1, 2, and 3 are in the same stripe above.
+
+This problem arises in all RAID arrays; simply put, given a logical block to read or write, how does the RAID know exactly which physical disk and offset to access?
+
+For these simple RAID levels, we do not need much sophistication in order to correctly map logical blocks onto their physical locations. Take the first stripping example above. In this case, given a logical block address A, the RAID can easily compute the desired disk and offset with two simple equations:
+
+Note that these are all integer operations (e.g., 4 / 3 = 1 not 1.3333...). Let's see how these equations work for a simple example. Imagine in the first RAID above that a request arrives for block 14. Given that there are 4 disks, this would mean that the disk we are interested in is (14 % 4 = 2): disk 2. The exact block is calculates as (14 / 4 = 3): block 3. Thus, block 14 should be found on the fourth block (block 3, starting at 0) of the third disk (disk 2, starting at 0), which is exactly where it is.
+You can think about how these equations would be modified to support different chunk sizes.
+
+### RAID Level 1: Mirroring
+Our first RAID level beyond stripping is known as RAID level 1, or mirroring. With a mirrored system, we simply make more than one copy of each block in the system; each copy should be placed on a separate disk, of course. By doing so, we can tolerate disk failures.
+
+In a typical mirrored system, we will assume that for each logical block, the RAID keeps two physical copies of it. Here is an example:
+
+Disk 0 | Disk 1 | Disk 2 | Disk 3
+------------ | -------------| -------------| -------------
+0 | 0 | 1 | 1
+2 | 2 | 3 | 3
+4 | 4 | 5 | 5
+6 | 6 | 7 | 7
+
+In the example, disk 0 and disk 1 have identical contents, and disk 2 and disk 3 do as well; the data is striped across these mirror pairs.
+
+When reading a block from a mirrored array, the RAID has a choice: it can read either copy. For example, if a read to logical block 5 is issued to the RAID, it is free to read it from either disk 2 or disk 3. When writing a block, though, no such choice exists: the RAID must update *both* copies of the data, in order to preserve reliability. Do note, though, that these writes can take place in parallel; for example, a write to logical block 5 could proceed to disk 2 and 3 at the same time.
+
+### RAID Level 4: Saving Space With Parity
+We now present a different method of adding redundancy to a disk array known as **parity**. Parity-based approaches attempt to use less capacity and thus overcome the huge space penalty paid by mirrored systems.
+
+Disk 0 | Disk 1 | Disk 2 | Disk 3 | Disk 4
+------------ | -------------| -------------| -------------| -------------
+0 | 1 | 2 | 3 | P0
+4 | 5 | 6 | 7 | P1
+8 | 9 | 10 | 11 | P2
+12 | 13 | 14 | 15 | P3
+
+Here is an example five-disk RAID-4 system. For each stripe of data, we have added a single **parity** block that stores the redundant information for that stripe of blocks. For example, parity block P1 has redundant information that is calculated from blocks 4, 5, 6, and 7.
+
+To compute parity, we need to use a mathematical functions that enables us to withstand the loss of any one block from our stripe. It turns out the simple function **XOR** does the trick quite nicely. For a given set of bits, the XOR of all those bits return a 0 if there are an even number of 1's in the bits, and a 1 if there are an odd number of 1's. For example:
+
+C0 | C1 | C2 | C3 | P
+------------ | -------------| -------------| -------------| -------------
+0 | 0 | 1 | 1 | XOR(0,0,1,1)=0
+0 | 1 | 0 | 0 | XOR(0,1,0,0)=1
+
+In this first row (0,0,1,1), there are two 1's (C2, C3), and thus XOR of all of those values will be 0 (P); similarly, in the second row there is only one 1 (C1), and thus the XOR must be 1 (P).
+
+From the example above, you might be able to guess how parity information can be used to recover from a failure. Imagine the column labeled C2 is lost. To figure out what values must have been in the column, we simply have to read in all the other values in that row (including the XOR's parity bit) and **reconstruct** the right answer. Specifically, assume the first row's value in column C2 is lost (it is a 1); by reading the other values in that row (0 from C0, 0 from C1, 1 from C3, and 0 from the parity column P), we get the values 0, 0, 1, and 0. Because we know that XOR keeps an even number of 1's in each row, we know what the missing data must be: a 1. And that is how reconstruction works in a XOR-based parity scheme!
+
+Now you might be wondering: we are talking about XORing all of these bits, and yet from above we know that the RAID places 4KB (or larger) blocks on each disk; how do we apply XOR to a bunch of blocks to compute the parity? It turns out this is easy as well. Simply perform a bitwise XOR across each bit of the data blocks; put the result of each bitwise XOR into the corresponding bit slot in the parity block. For example, if we had blocks of size 4 bits (yes, this is still a bit smaller than a 4KB block, but you get the picture), they might look something like this:
+
+Block0 | Block1 | Block2 | Block3 | Parity
+------------ | -------------| -------------| -------------| -------------
+00 | 10 | 11 | 10 | 11
+10 | 01 | 00 | 01 | 10
+
+As you can see from the figure, the parity is computer for each bit of each block and the result placed in the parity block.
+
 ## Interlude: Files and Directories
 ### Files and Directories
 Two key abstractions have developed over time in the virtualization of storage. The first file is the **file**. A file is simply a linear of bytes, each of which you can read or write. Each file has some kind of **low-level name**, usually a number of some kind. For historical reasons, the low-level name of a file is often referred to as its **inode number**. for now, just assume that each file has an inode number associated with it.

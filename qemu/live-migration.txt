@@ -9,7 +9,7 @@ Stage 3: Stop guest, transfer remaining dirty RAM, device state
 
 We begin stage 1 by marking each page "dirty" - or "needs to be migrated".
 Then we send across all those pages marked dirty to the destination host.
-That’s it for stage 1.
+That's it for stage 1.
 
 When to transition from stage 2 to stage 3 is an important decision to
 make: the guest is paused for the duration of stage 3, so it’s desirable

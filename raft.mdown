@@ -1,0 +1,39 @@
+# CONSENSUS: BRIDGING THEORY AND PRACTICE
+## Basic Raft algorithm
+### Leader election
+Leaders sens periodic heartbeats (AppendEntries RPCs that carry no log entries) to all followers in order to maintain their authority. If a follower receives no communication over a period of time called the *election timeout*, then it assumes there is no viable leader and begins an election to choose a new leader.
+
+The third outcome is that a candidate neither wins nor loses the election: if many followers become candidates at the same time, votes could be split so that no candidate obtains a majority. When this happens, each candidate will time out and start a new election by incrementing its term and initiating another round of RequestVote RPCs. However, without extra measures split votes could repeat indefinitely.
+
+Raft uses randomized election timeouts to ensure that split votes are rare and that they are resolved quickly. To prevent split votes in the first place, election timeouts are chosen randomly from a fixed interval (e.g., 150-300ms). This spreads out the servers so that in most cases only a single server will time out; it wins the election and sends heartbeats before any other servers time out. The mechanism is used to handle split votes. Each candidate restarts its randomized election timeout at the start of an election, and it waits for that timeout to elapse before starting the next election; this reduces the likelihood of another split vote in the new election.
+
+### Log replication
+Each client request contains a command to be executed by the replicated state machine. The leader appends the command to its log as a new entry, then issues AppendEntries RPCs in parallel to each of the other servers to replicate the entry. If followers crash or run slowly, or if network packets are lost, the leader retries AppendEntries RPCs indefinitely (even after it has responded to the client) until all followers eventually store log entries.
+
+Each log entry stores a state machine command along with the term number when the entry was received by the leader. Each log entry also has an integer index identifying its position in the log.
+
+Raft guarantees that committed entries are durable and will eventually be executed by all of the available state machines. A log entry is committed once the leader that created the entry has replicated on a majority of the servers. The leader keeps track of the highest index it knows to be committed, and it includes that index in future AppendEntries RPCs so that the other servers eventually find out. Once a follower learns that a log entry is committed, it applies the entry to its local state machine (in log order).
+
+The second property is guaranteed by a consistency check performed by AppendEntries. When sending an AppendEntries RPC, the leader includes the index and term of the entry in its log that immediately precedes the new entries. If the follower does not find an entry in its log with the same index and term, then it refuses the new entries. The consistency check acts as an induction step: the initial empty state of the logs satisfies the Log Matching Property, and the consistency check preserves the Log Matching Propert whenever logs are extended. As a result, whenever AppendEntries returns successfully, the leader knows that the follower's log is identical to its own log up through the new entries.
+
+### Safety
+#### Election restriction
+Raft uses the voting process to prevent a candidate from winning an election unless its log contains all committed entries. A candidate must contact a majority of the cluster in order to be elected, which means that every committed entry must be present in at least one of those servers. If the candidate's log is at least as up-to-date as any other log in that majority (where "up-to-date" is defined precisely below), then it will hold all the committed entries. The RequestVote RPC implements this restriction: the RPC includes information about the candidate's log, and the voter denies its vote if its own log is more up-to-date than that of the candidate.
+
+Raft determines which of two logs is more up-to-date by comparing the index and term of the last entries in the logs. If the logs have last entries with different terms, then the log with the later term is more up-to-date. If the logs end with the same term, then whichever log is longer is more up-to-date.
+
+## Cluster membership changes
+### Safety
+Preserving safety is the first challenge for configuration changes. For the mechanism to be safe, there must be no point during the configuration where it is possible for two leaders to be elected for the same term. If a single configuration change adds or removes many servers, switching the cluster directly from the old configuration to the new configuration can be unsafe; it isn't possible to atomically switch all of the servers at once, so the cluster can potentially split into two independent majorities during the transition.
+
+![](raft_membership_change_unsafe.png)
+
+### Arbitrary configuration changes using joint consensus
+To ensure safety across arbitrary configuration changes, the cluster first switches to a transitional configuration we call *joint consensus*; once the joint consensus has been committed, the system then transitions to the new configuration. The joint consensus combines both the old and new configurations:
+* Agreement (for elections and entry commitment) requires majorities from *bot* the old and new configurations. For example, when changing from a cluster of 3 servers to a different cluster of 9 servers, agreement requires both 2 f the servers in the old configuration and 5 of the 9 servers in the new configuration.
+
+Furthermore, joint consensus allows the cluster to continue servicing client requests throughout the configuration change.
+
+When the leader receives a request to change the configuration from *C*<sub>old</sub> to *C*<sub>new</sub>, it stores the configuration for joint consensus (*C*<sub>old,new</sub>) as a log entry and replicates the entry using the normal Raft mechanism. As with the single-server configuration change algorithm, each server starts using a new configuration as soon as it stores the configuration in its log. This means that the leader will use the rules of *C*<sub>old,new</sub> to determine when the log entry for *C*<sub>old,new</sub> is committed. If the leader crashes, a new leader may be chosen under either *C*<sub>old</sub> or *C*<sub>old,new</sub>, depending on whether the winning candidate has received *C*<sub>old,new</sub>. In any case, *C*<sub>new</sub> cannot make unilateral decisions during this period.
+
+Once *C*<sub>old,new</sub> has been committed, neither *C*<sub>old</sub> nor *C*<sub>new</sub> can make decisions without approval of the other, and the Leader Completeness Property ensures that only servers with the *C*<sub>old,new</sub> log entry can be elected as leader. It is now safe for the leader to create a log entry describing *C*<sub>new</sub> and replicate it to the cluster. Again, this configuration will take effect on each server as soon as it is seen.

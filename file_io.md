@@ -86,6 +86,10 @@ The Linux kernel, like any modern operating system kernel, implements a complex 
 
 Providing the `O_DIRECT` to `open()` instructs the kernel to minimize the presence of I/O management. When this flag is provided, I/O will initiate directly from user-space buffers to the device, bypassing the page cache. All I/O will be synchronous; operations will not return until completed.
 
+> Recall that the storage may itself store the data in a write-back cache, so `fsync()` is still required for files opened with `O_DIRECT` in order to save the data to stable storage.
+
+When providing direct I/O, the request length, buffer alignment, and file offsets must all be integer multiples of the underlying device's sector size - generally, this is 512 bytes.
+
 ### Seeking with lseek()
 Normally, I/O occurs linearly through a file, and the implicit updates to the file position caused by reads and writes are all the seeking that is needed. Some applications, however, need to jump around in the file. The `lseek()` system call is provided to set the file position of a file descriptor to a given file. Other than updating the file position, it performs no other action, and initiates no I/O whatsoever:
 ```

@@ -232,6 +232,67 @@ The *to* argument for `sendto` is a socket address structure containing the prot
 
 If the *from* argument to `recvfrom` is a null pointer, then the corresponding length argument (*addrlen*) must also be a null pointer, and this indicates that we are not interested in knowing the protocol address of who sent us data.
 
+### Name and Address Conversions
+#### Introduction
+All the examples so far in this text have used numeric addresses for the hosts (e.g., 206.6.226.33) and numeric port numbers to identify the servers (e.g., port 13 for the standard daytime server and port 9877 for our echo server). We should, however, use names instead of numbers for numerous reasons: Names are easier to remember; the numeric address can change but the name can remain the same; and with the move to IPv6, numeric addresses become much longer, making it much more error-prone to enter an address by hand.
+
+#### Domain Name System (DNS)
+The DNS is used primarily to map between hostnames and IP addresses. A hostname can be either a *simple* name, such as `solaris` or `freebsd`, or a *fully qualified domain name* '(FQDN), such as `solaris.unpbook.com`.
+
+**Resolvers and Name Servers**
+
+Organizations run one or more *name* servers, often the program known as BIND (Berkeley Internet Name Domain). Applications such as the client and servers that we are writing in this text contact a DNS server by calling functions in a library known as the *resolver*. The common resolver functions are `gethostbyname` and `gethostbyaddr`, both of which are described in this chapter. The former maps a hostname into its IPv4 addresses, and the latter does the reverse mapping.
+
+We now write the application code. On some systems, the resolver code is contained in a system library and is link-edited into the application when the application is built. On others, there is a centralized resolver daemon that all applications share, and the system library code performs RPCs to this daemon. In either case, application code calls the resolver code using normal function calls, typically calling the functions `gethostbyname` and `gethostbyaddr.`
+
+The resolver code reads its system-dependent configuration files to determine the location of the organization's name servers. The file `/etc/resolv.conf` normally contains the IP addresses of the local name servers.
+
+#### `getservbyname` and `getservbyport` Functions
+Services, like hosts, are often known by names, too. The next function, `getservbyname`, looks up a service given its name.
+```C
+#include <netdb.h>
+struct servent *getservbyname(const char *servname, const char *protoname);
+```
+This function returns a pointer to the following structure:
+```C
+struct servent {
+  char *s_name;        /* official service name */
+  char **s_aliases;    /* alias list */
+  int s-port;          /* port number, network-byte order */
+  char *s_proto;       /* protocol to use */
+}
+```
+The service name *servname* must be specified. If a protocol is also specified (*protoname* is a non-null pointer), then the entry must also have a matching protocol. Some Internet services are provided using either TCP or UDP (for example, the DNS), while others support only a single protocol (e.g., FTP requires TCP). If *protoname* is not specified and the service supports multiple protocols, it is implementation-dependent as to which port number is returned. Normally this does not matter, because services that support multiple protocols often use the same TCP and UDP port number, but this is not guaranteed.
+
+Typical calls to this function could be as follows:
+```C
+struct servent *sptr;
+
+sptr = getservbyname("domain", "udp");    /* DNS using UDP */
+sptr = getservbyname("ftp", "tcp");       /* FTP using TCP */
+sptr = getservbyname("ftp", NULL);        /* FTP using TCP */
+sptr = getservbyname("ftp", "udp");       /* this call will fail */
+```
+Since FTP supports only TCP, the second and third calls are the same, and the fourth call will fail.
+
+The next function, `getservbyport`, looks up a service given its port number and an optional protocol.
+```C
+#include <netdb.h>
+struct servent *getservbyport(int port, const char *protoname);
+```
+The *port* value must be network bytes ordered. Typical calls to this function could be as follows:
+```C
+struct servent *sptr;
+sptr = getservbyport(htons(53), "udp");    /* DNS using UDP */
+sptr = getservbyport(htons(21), "tcp");    /* FTP using TCP */
+sptr = getservbyport(htons(21), NULL);     /* FTP using TCP */
+sptr = getservbyport(htons(21), "udp");    /* this call will fail */
+```
+The last call fails because there is no service that uses port 21 with UDP.
+
+#### `getaddrinfo` Function
+The `getaddrinfo` function handles both name-to-address and service-to-port translation.
+
 ## Advanced Sockets
 ### Advanced I/O Functions
 #### `readv` and `writev` Functions

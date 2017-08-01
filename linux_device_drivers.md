@@ -338,7 +338,9 @@ The *sbull* driver, however, takes all that work and simply ignores it. Only one
 #### Request Queues
 In the simplest sense, a block request queue is exactly that: a queue of block I/O requests.
 
-Request queues also implement a plug-in interface that allows the use of multiplex *I/O scheduler* (or *elevators*) to be used.
+Request queues keep track of outstanding block I/O requests.
+
+Request queues also implement a plug-in interface that allows the use of multiplex *I/O scheduler* (or *elevators*) to be used. An I/O scheduler's job is to present I/O requests to your driver in a way that maximizes performance. To this end, most I/O schedulers accumulate a batch of requests, sort them into increasing (or decreasing) block index order, and present the requests to the driver in that order. The disk head, when given a sorted list of requests, works its way from one end of the disk to the other, much like a full elevator moves in a single direction until all of its "requests" (people waiting to get off) have been satisfied. The 2.6 kernel includes a "deadline scheduler," which makes an effort to ensure that every request is satisfied within a present maximum time.
 
 The I/O scheduler is also charged with merging adjacent requests. When a new I/O request is handed to the scheduler, it searches the queue for requests involving adjacent sectors; if one is found and if the resulting request would not be too large, the two requests are merged.
 

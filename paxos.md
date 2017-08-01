@@ -207,3 +207,69 @@ struct new_view_arg {
 };
 ```
 If an underling has switched to a different view manager with a higher proposed `newvid`, it rejects the new view RPC. Otherwise, it compares `latest` to the viewstamp at the end of its own log, and if any operations are missing brings itself up to date by transferring the missing log entries from the proposed new primary.
+
+## CS5412: PAXOS
+### Leslie Lamport's vision
+* Centers on *state machine replication* 
+  * We have a set of replicas that each implement some given, deterministic, state machine and we start them in the same state
+  * Now we apply the same events in the same order. The replicas remain in the identical state
+* How best to implement this model?
+### Two paths forwards
+* One option is to build a totally ordered reliable multicast protocol, also called an "atomic broadcast" protocol in some papers
+  * To send a request, you give it to the library implementation protocol
+  * Eventually it does *upcalls* to event handlers in the replicated application and they apply the event
+  * In this approach the application "is" the state machine and the multicast "is" the replication mechanism
+* Use "state transfer" to initialize a joining process if we want to replace replicas that crash
+
+* A second option, explored in Lamport's Paxos achieves a similar result but in a very different way
+
+### Paxos: Step by step
+* Paxos is designed to deal with systems that
+  * Reach ***agreement*** on what "commands" to execute, and on the order in which to execute them in
+  * Ensure ***durability***: once a command becomes executable, the system will never forget the command. In effect, the data ends up in a database that Paxos is used to update.
+  * Durability usually means "persisted into non-volatile storage"
+* The term command is interchangeable with "message" and the term "execute" means "take action"
+* Paxos is *not* a reliable multicast protocol. It normally holds the entire state of the application and the front-end systems normally need to obtain (***learn*) state by querying Paxos.
+### Terminology
+* These roles are:
+  * Leader (a process that runs the update protocol)
+  * Acceptor (a participant), and
+  * Learner (a protocol for obtaining the list of committed commands)
+### Visualizing this
+* The client asks the leader for help "I would like the Paxos system to accept this command." Paxos is like a "postal system". A leader passes the command in.
+* The leader and acceptors group "thinks" about the letter for a while (replicating the data and picking a delivery order)
+* Once the commands their ordering is "decided" it can be learned by running a learner protocol
+* Usually the learners then take some action: they carry out the command
+
+### Applying commands to the state machine
+* The learner watches and waits until new commands become committed (decided)
+  * As slots become decided, the learner is able to find out if a decided slot has a command, or nothing in it =.
+    * Goes to the next slot if "no command"
+    * Performs the command if a command is present
+  * Can't skip a slot: learner takes one step at a time
+* Little known but important: *after a crash, a recovering learner is shown the whole log from the start and is supposed to ignore commands that were already done.*
+
+### Paxos with a disk
+* Accordingly, the command list must be kept on a disk, as a disk log: leads to **Corfu** system
+  * Now accept and commit actions involved disk writes that must be complete before next step can occur
+  * Further slows the protocol down
+
+### Paxos isn't a reliable multicast!
+* Consider the following common idea:
+  * Take a file, or a database... Make N replicas
+  * Now put a program that runs Paxos in front of the replicated file/db
+  * Learner just asks the file to do the command (a write or append), or the DB to run an update query
+  * Would this be correct? Why?
+    * ... no, because after a crash, Paxos will replay commands and the file or database might be updated twice if it isn't "idempotent". Many researchers don't realize this.
+### Correct use of Paxos
+* The learner needs to be a part of the application!
+* By treating the learner as part of Paxos, we erroneously ignore the durability of actions in the application state, and this causes potential error
+  * The *application* must perform every operation, at least once
+  * Learner retries after crashes until application has definitely performed each action
+  * To avoid duplicated actions, application should check for and ignore actions already applied to the database
+* Many Paxos-based replication systems are incorrect because they fail to implement this logic!
+
+## Paxos Made Transparent
+### CRANE OVERVIEW
+#### Architecture
+Each checkpoint in CRANE is associated with a global index in PAXOS's consensus order, so if one replica needs recovery. CRANE ships the latest check from a backup replica, restores the process running DMT and the server program, and re-executes socket calls starting from this index.
