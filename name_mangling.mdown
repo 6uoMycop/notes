@@ -1,0 +1,58 @@
+# Name mangling demystified
+
+## Introduction
+Name mangling is the process of generating unique names.
+
+Name mangling is applied in several areas, although it's primarily used for generating unique (unambiguous) names for identifiers in a computer programming language.
+
+Programming languages that deal with function/method overloading have compilers that implement some name mangling scheme.
+
+Some examples are C++ (most people mean C++ when they address name mangling), C#, Java, Python, Objective C and Fortran.
+
+## Mixing C and C++
+Name mangling is not desirable when linking C modules with libraries or object files compiled with a C++ compiler. To prevent the C++ compiler from mangling the name of a function, you can apply the extern "C" linkage specifier to the declaration of the function or put the functions inside a extern "C" block.
+
+Take a look at the following example:
+```
+[gorlist@waterdeep mangling]$ cat linkage.cpp
+void one(int);
+void two(char,char);
+
+int main()
+{
+    one(1);
+    two('a','b');
+    return 0;
+}
+[gorlist@waterdeep mangling]$ g++ -c linkage.cpp
+[gorlist@waterdeep mangling]$ nm linkage.o
+         U _Z3onei
+         U _Z3twocc
+         U __gxx_personality_v0
+00000000 T main
+```
+The C++ function were mangled as expected.
+Now let's try putting those functions in an extern "C" block.
+```
+[gorlist@waterdeep mangling]$ cat linkage2.cpp
+extern "C"
+{
+    void one(int);
+    void two(char,char);
+}
+int main()
+{
+    one(1);
+    two('a','b');
+    return 0;
+}
+[gorlist@waterdeep mangling]$ g++ -c linkage2.cpp
+[gorlist@waterdeep mangling]$ nm linkage2.o
+         U __gxx_personality_v0
+00000000 T main
+         U one
+         U two
+```
+extern "C" prevented the functions from getting mangled.
+
+That way, a C (or any other language) can call those functions.
