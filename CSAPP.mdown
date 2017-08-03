@@ -1,5 +1,74 @@
+<script type="text/javascript" async
+  src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
 # Computer Systems: A Programmer's Perspective
 ## Program Structure and Execution
+### Representing and Manipulating Information
+#### Information Storage
+##### Hexadecimal Notation
+A single byte consists of 8 bits. In binary notation, its value ranges from \\( 00000000_2 \\) to \\( 11111111_2 \\). Hexadecimal (or simply "hex") uses digits '0' through '9' along with characters 'A' through 'F' to represent 16 possible values. Written in hexadecimal, the value of a single byte can range from \\( 00_{16} \\) to \\( FF_{16} \\).
+
+![Hexadecimal notation.](hex_notation.png)
+
+In C, numeric constants starting with `0x` or `0X` are interpreted as being in hexadecimal. A common task in working with machine-level programs is to manually convert between decimal, binary, and hexadecimal representations of bit patterns. Converting between binary and hexadecimal is straightforward, since it can be performed one hexadecimal digit at a time. Digits can be converted by referring to a chart such that shown above.
+
+##### Data Sizes
+The C language supports multiple data formats for both integer and floating-point data.
+
+The exact numbers of bytes for some data types depends on how the program is compiled. We show sizes for typical 32-bit and 64-bit programs. Integer data can be either *signed*, able to represent negative, zero, and positive values, or *unsigned*, only allowing nonnegative values. Data type `char` represents a single byte.
+
+![Typical sizes (in bytes) of basic C data types.](C_data_size.png)
+
+To avoid the vagaries of relying on "typical" sizes and different compiler settings, ISO C99 introduced a class of data types where the data sizes are fixed regardless of compiler and machine settings. Among these are data types `int32_t` and `int64_t`, having exactly 4 and 8 bytes, respectively. Using fixed-size integer types is the best way for programmers to have close control over data representations.
+
+##### Addressing and Byte Ordering
+```C
+#include <stdio.h>
+
+typedef unsigned char *byte_pointer;
+
+void show_bytes(byte_pointer start, size_t len) {
+    int i;
+    for (i = 0; i < len; i++)
+        printf(" %.2x", start[i]);
+    printf("\n");
+}
+```
+We use `typedef` to define data type `byte_pointer` as a pointer to an object of type `unsigned char`. Such a byte pointer references a sequence of bytes where each byte is considered to be a nonnegative integer. The first routine `show_bytes` is given the address of a sequence of bytes, indicated by a byte pointer, and a byte count. It prints the individual bytes in hexadecimal. The C formatting directive `%.2x` indicates that an integer should be printed in hexadecimal with at at least 2 digits.
+
+##### Representing Strings
+A string in C is encoded by an array of characters terminated by the null (having value 0) character. Each character is represented by some standard encoding, with the most common being the ASCII character code. Thus, if we run our routine `show_bytes` with arguments "`12345`" and 6 (to include the terminating character), we get the result `31 32 33 34 35 00`.
+
+#### Integer Representations
+##### Integral Data Types
+C supports a variety of *integral* data types - ones that represent finite ranges of integers. Each type can specify a size with keyword `char`, `short`, `long`, as well as an indication of whether the represented number are all nonnegative (declared as `unsigned`), or possibly negative (the default). The number of bytes allocated for the different sizes varies according to whether the program is compiled for 32 or 64 bits.
+
+One important feature to note is that the ranges are not symmetric - the range of negative numbers extends one further than the range of positive numbers. We will see why this happend
+
+##### Unsigned Encodings
+Let us consider an integer data type of \\( w \\)) bits. We write a bit vector as either \\( \vec{x} \\), to denote the entire vector, or as \\( [x_{w-1},x_{w-2},...,x_0] \\) to denote the individual bits within the vector. Treating \\( \vec{x} \\) as a number written in binary notation, we obtain the *unsigned* interpretation of \\( \vec{x} \\). In this encoding, each bit \\( x_i \\) has value 0 or 1, with the latter case indicating that value \\( 2^{i} \\) should be included as part of the numeric value. We can express this interpretation as a function \\( B2U_w \\) (for "binary to unsigned", length \\( w \\)):
+
+For vector \\( \vec{x} = [x_{w-1},x_{w-2},\dotsc,x_0] \\):
+\\( B2U_w(\vec{x}) = \displaystyle\sum_{i=0}^{w-1} x_i2^i \\)
+
+In this equation, the notation \\( = \\) means that the left-hand side is defined to be equal to the right-hand side.
+
+\\( B2U_4([1011]) =  1 \cdot 2^3 + 0 \cdot 2^2 + 1 \cdot 2^1 + 1 \cdot 2^0 = 11 \\)
+
+##### Two's-Complement Encodings
+For many applications, we wish to represent negative values as well. The most common computer representation of signed numbers is known as *two's-complement* form. This is defined by interpreting the most significant bit of the word to have negative weight. We express this interpretation as a function \\( B2T_w \\) (for "binary to two's complement", length  \\( w \\)):
+
+For vector \\( \vec{x} = [x_{w-1},x_{w-2},\dotsc,x_0] \\):
+\\( B2U_w(\vec{x}) = -x_{w-1}2^{w-1} + \displaystyle\sum_{i=0}^{w-2} x_i2^i \\)
+
+The most significant bit \\( x_{w-1} \\) is also called the *sign bit*. Its "weight" is \\( -2^{w-1} \\), the negation of its weight in an unsigned representation. When the sign bit is set to 1, the represented value is negative, and when set to 0, the value is nonnegative.
+
+\\( B2U_4([1011]) =  -1 \cdot 2^3 + 0 \cdot 2^2 + 1 \cdot 2^1 + 1 \cdot 2^0 = -5 \\)
+
+##### Signed versus Unsigned in C
+Adding character 'U' or 'u' as a suffix creates an unsigned constant; for example, `12345U` or `Ox1A2Bu`.
+
 ### Machine-Level Representation of Programs
 #### Combining Control and Data in Machine-Level Programs
 ##### Thwarting Buffer Overflow Attacks
@@ -7,7 +76,7 @@
 
 In order to insert exploit code into a system, the attacker needs to inject both the code as well as a pointer to this code as part of the attack string. Generating this pointer requires knowing the stack address where the string will be located. Historically, the stack address for a program were highly predictable. For all systems running the same combination of program and operating system version, the stack locations were fairly stable across many machines.
 
-The idea of *stack randomization* is to make the position of the stack vary from one run of a program to another. Thus, even if many machines are running identical code, they would all be using different stack addresses. This is implemented by allocating a random amount of space between 0 and *n* bytes on the stack at the start of a program, for example, by using the allocation function `alloca`, which allocates space for a specified number of bytes on the stack. This allocated space is not used by the program, but it causes all subsequent stack locations to vary from one execution of a program to another. The allocation range *n* needs to be large enough to get sufficient variations in the stack address, yet small enough that it does not waste too much space in the program.
+The idea of *stack randomization* is to make the position of the stack vary from one run of a program to another. Thus, even if many machines are running identical code, they would all be using different stack addresses. This is implemented by allocating a random amount of space between 0 and \\( n \\) bytes on the stack at the start of a program, for example, by using the allocation function `alloca`, which allocates space for a specified number of bytes on the stack. This allocated space is not used by the program, but it causes all subsequent stack locations to vary from one execution of a program to another. The allocation range \\( n \\) needs to be large enough to get sufficient variations in the stack address, yet small enough that it does not waste too much space in the program.
 
 The following code shows a simple way to determine a "typical" stack address:
 ```
@@ -17,9 +86,84 @@ int main() {
     return 0;
 }
 ```
-This code simply prints the address of a local variable in the `main` function. Running the code 10000 times on a Linux machine in 32-bit mode, the address ranged from `0xff7fc59c` to `0xffffd09c`, a range of around 2<sup>23</sup>.
+This code simply prints the address of a local variable in the `main` function. Running the code 10000 times on a Linux machine in 32-bit mode, the address ranged from `0xff7fc59c` to `0xffffd09c`, a range of around \\( 2^{23} \\).
 
 Stack randomization has become standard practice in Linux systems. It is one of a larger class technique known as *address-space layout randomization*, or ASLR. With ASLR, different parts of the program, including program code, library code, stack, global variables, and heap data, are loaded into different regions of memory each time a program is run. That means that a program running on one machine will have very different address mappings than the same program running on other machines. This can thwart some forms of attack.
+
+### Optimizing Program Performance
+#### Program Profiling
+Program *profiling* involves running a version of a program in which instrumentation code has been incorporated to determine how time the different parts of the program require. It can be very useful for identifying the parts of a program we should focus on in our optimization efforts. One strength of the profiling is that it can be performed while running the actual program on realistic benchmark data.
+
+Unix systems provide the profiling program `GRPOF`. This program generates two forms of information. First, it determines how much CPU time was spent for each of the functions in the program. Second, it computers a count of how many times each function gets called, categorized by which function performs the call. Both forms of information can be quite useful The timings give a sense of the relative importance of the different functions in determining the overall run time. The calling information allows us to understand the dynamic behavior of the program.
+
+Profiling with `GPROF` requires three steps, as shown for a C program `prog.c`, which runs with command-line argument `file.txt`:
+1. The program must be compiled and linked for profiling. With GCC (and other C compilers), this involves simply including the run-time flag `-pg` on the command line. It is important to ensure that the compiler does not attempt to perform any optimizations via inline substitution, or else the calls to functions may not be tabulated accurately. We use optimization flag `-Og`, guaranteeing that function calls be tracked properly.
+```
+linux> gcc -Og -pg prog.c -o prog
+```
+2. The program is then executed as usual:
+```
+linux> ./prog file.txt
+```
+It runs slightly (around a factor of 2) slower than normal, but otherwise the only difference is that it generates a file `gmon.out`.
+3. `GPROF` is invoked to analyze the data in `gmon.out`:
+```
+linux> gprof prog
+```
+The first part of the profile report lists the times spent executing the different functions, sorted in descending order.
+```C
+/* Recursively find string in list.  Add to end if not found */
+h_ptr find_ele_rec(h_ptr ls, char *s)
+{
+    if (!ls) {
+        /* Come to end of list.  Insert this one */
+        ucnt++;
+        return new_ele(save_string(s));
+    }
+    if (strcmp(s,ls->word) == 0) {
+        ls->freq++;
+        if (ls->freq > mcnt) {
+            mcnt = ls->freq;
+            mstring = ls->word;
+        }
+        return ls;
+    }
+    ls->next = find_ele_rec(ls->next, s);
+    return ls;
+}
+
+void insert_string(char *s,
+           hash_fun_t hash_fun, lower_fun_t lower_fun,
+           find_ele_fun_t find_ele_fun)
+{
+    int index;
+    lower_fun(s);
+    index = hash_fun(s);
+    htable[index] = find_ele_fun(htable[index], s);  
+}
+```
+As an example, the following listing shows this part of the report for the three most time-consuming functions in a program:
+```
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls   s/call   s/call  name    
+ 97.58    203.66   203.66        1   203.66   203.66  sort_words
+  2.32    208.50     4.85   965027     0.00     0.00  find_ele_rec
+  0.14    208.81     0.30 12511031     0.00     0.00  Strlen
+```
+Each row represents the time spent for all calls to some function. The first column indicates the percentage of the overall time spent on the function. The second shows the cumulative time spent by the functions up to and including the one on this row. The third row shows the time spent on this particular function, and the fourth shows how many times it was called (not counting recursive calls). In our example, the function `sort_words` was called only once, but this single call required 203.66 seconds, while the function `find_ele_rec` was called 965027 times (not including recursive calls), requiring a total of 4.85 seconds. Function `Strlen` computes the length of a string by calling the library function `strlen`. Library function calls are normally not shown in the results of `GPROF`. Their times are usually reported as part of the function calling them. By creating the "wrapper function" `Strlen`, we can reliably track the calls to `strlen`, showing that it was called 12511031 times but only requiring a total of 0.30 seconds.
+
+The second part of the profile report shows the calling history of the functions. The following is the history for a recursive function `find_ele_rec`:
+```
+                             158655725             find_ele_rec [5]
+                4.85    0.10  965027/965027      insert_string [4]
+[1]     52.4    4.85    0.10  965027+158655725 find_ele_rec [5]
+                0.08    0.01  363039/363039      save_string [8]
+                0.00    0.01  363039/363039      new_ele [12]
+                4.85    0.01 158655725             find_ele_rec [5]
+```
+The history shows both the functions that called `find_ele_rec`, as well as the functions that it called. The first two lines show the calls to the functions: 158655725 calls by itself recursively, and 965027 calls by function `insert_string` (which is itself called 965027 times). Function `find_ele_rec`, in turn, called two other functions, `save_string` and `new_ele`, each a total of 363039 times.
+
+From these call data, we can often infer useful information about the program behavior. For example, the function `find_ele_rec` is a recursive procedure that scans the linked list for a hash bucket looking for a particular string. For this function, comparing the number of recursive calls with the number of top-level calls provides statistical information about the lengths of the traversal through these lists. Given that their ratio is 164.4:1, we can infer that the program scanned an average of around 164 elements each time.
 
 ### The Memory Hierarchy
 #### Storage Technologies
@@ -44,9 +188,9 @@ A solid state disk (SSD) is a storage technology, based on flash memory, that in
 
 An SSD package plugs into a standard disk slot on the I/O bus (typically USB or SATA) and behaves like any other disk, processing requests from the CPU to read and write logical disk blocks. An SSD package consists of one or more flash memory chips, which replace the mechanical driver in a conventional rotating disk, and a *flash translation layer*, which is a hardware/firmware device that plays the same role as a disk controller, translating requests for logical blocks into accesses of the underlying physical device.
 
-A flash memory consists of a sequence of *B blocks*, where each block consists of *P* pages. Typically, pages are 512 bytes to 4KB in size, and a block consists of 32-128 pages, with total block sizes ranging from 16KB to 512KB. Data are read and written in units of pages. A page can be written only after the entire block to which it belongs has been *erased* (typically, this means that all bits in the block are set to 1). However, once a block is erased, each page in the block can be written once with no further erasing. A block wears out after roughly 100000 repeated writes. Once a block wears out, it can no longer be erasing.
+A flash memory consists of a sequence of \\( B \\) *blocks*, where each block consists of \\( P \\) pages. Typically, pages are 512 bytes to 4KB in size, and a block consists of 32-128 pages, with total block sizes ranging from 16KB to 512KB. Data are read and written in units of pages. A page can be written only after the entire block to which it belongs has been *erased* (typically, this means that all bits in the block are set to 1). However, once a block is erased, each page in the block can be written once with no further erasing. A block wears out after roughly 100000 repeated writes. Once a block wears out, it can no longer be erasing.
 
-Random writes are slower for two reasons. First, erasing a block takes a relatively long time, on the order of 1ms, which is more than an order to magnitude longer than it takes to access a page. Second, if a write operation attempts to modify a page *p* that contains existing data (i.e., not all ones), then any pages in the same block with useful data must be copied to a new (erased) block before the write to page *p* can occur.
+Random writes are slower for two reasons. First, erasing a block takes a relatively long time, on the order of 1ms, which is more than an order to magnitude longer than it takes to access a page. Second, if a write operation attempts to modify a page \\( p \\) that contains existing data (i.e., not all ones), then any pages in the same block with useful data must be copied to a new (erased) block before the write to page \\( p \\) can occur.
 
 SSDs have a number of advantages over rotating disks. They are built of semiconductor memory, with no moving parts, and thus have much faster random access times than rotating disks, use less power, and are more rugged.
 
@@ -58,16 +202,16 @@ The memory hierarchies of early computer systems consisted of only three levels:
 As the performance gap between the CPU and main memory continued to increase, system designers responded by inserting an additional larger cache, called an *L2 cache*, between the L1 cache and main memory, that can be accessed in about 10 clock cycles. Many modern systems include an even larger cache, called an *L3 cache*, which sits between the L2 cache and main memory in the memory hierarchy and can be accessed in about 50 cycles.
 
 ##### Generic Cache Memory Organization
-A cache for such a machine is organized as an array of *cache sets*. Each set consists of *E* *cache lines*. Each cache line consists of a data block of *B* = 2<sup>*b*</sup> bytes, a *valid bit* that indicates whether or not the line contains meaningful information, and *t* = *m* - (*b* + *s*) tag bits (a subset of the bits from the current block's memory address) that uniquely identify the block stored in the cache line.
+A cache for such a machine is organized as an array of *cache sets*. Each set consists of *E* *cache lines*. Each cache line consists of a data block of \\( B = 2^b \\) bytes, a *valid bit* that indicates whether or not the line contains meaningful information, and \\( t = m - (b + s) \\) tag bits (a subset of the bits from the current block's memory address) that uniquely identify the block stored in the cache line.
 
-In general, a cache's organization can be characterized by the tuple (*S*, *E*, *B*, *m*). The size (or capacity) of a cache, *C*, is stated in terms of the aggregate size of all the blocks. Thus, *C* = *S* x *E* x *B*.
+In general, a cache's organization can be characterized by the tuple (\\( S \\), \\( E \\), \\( B \\), \\( m \\)). The size (or capacity) of a cache, \\( C \\), is stated in terms of the aggregate size of all the blocks. Thus, \\( c = S \times E \times B \\).
 
-When the CPU is instructed by a load instructor to read a word from address *A* of main memory, it sends address *A* to the cache. If the cache is holding a copy of the word at address *A*, it sends the word immediately back to the CPU. So how does the cache know whether it contains a copy of the word at address *A*? The cache is organized so that it can find the requested word by simply inspecting the bits of the address, similar to a hash table with an extremely simple hash function.
+When the CPU is instructed by a load instructor to read a word from address \\( A \\) of main memory, it sends address \\( A \\) to the cache. If the cache is holding a copy of the word at address \\( A \\), it sends the word immediately back to the CPU. So how does the cache know whether it contains a copy of the word at address \\( A \\)? The cache is organized so that it can find the requested word by simply inspecting the bits of the address, similar to a hash table with an extremely simple hash function.
 
 ##### Issues with Writes
-As we have seen, the operation of a cache with respect to reads is straightforward. First, look for a copy of the desired word *w* in the cache. If there is a hit, return *w* immediately. If there is a miss, fetch the block that contains *w* from the next lower level of the memory hierarchy, store the block in some cache line (possibly evicting a valid line), and then return *w*.
+As we have seen, the operation of a cache with respect to reads is straightforward. First, look for a copy of the desired word \\( w \\) in the cache. If there is a hit, return \\( w \\) immediately. If there is a miss, fetch the block that contains \\( w \\) from the next lower level of the memory hierarchy, store the block in some cache line (possibly evicting a valid line), and then return \\( w \\).
 
-The situation for writes is a little more complicated. Suppose we write a word *w* that is already cached (a *write hit*). After the cache updates its copy of *w*, what does it do about updating the copy of *w* in th next lower level of the hierarchy? The simplest approach, known as *write-through*, is to immediately write *w*'s cache block to the next lower level. While simple, write-through has the disadvantage of causing bus traffic with every write. Another approach, known as *write-back*, defers the update as long as possible by writing the updated block to the next lower level when it is evicted from the cache by the replacement algorithm. Because of locality, write-back can significantly reduce the amount of bus traffic, but it has the advantage pf additional complexity. The cache must maintain an additional *dirty bit* for each cache line that indicates whether or not the cache block has been modified.
+The situation for writes is a little more complicated. Suppose we write a word \\( w \\) that is already cached (a *write hit*). After the cache updates its copy of \\( w \\), what does it do about updating the copy of \\( w \\) in th next lower level of the hierarchy? The simplest approach, known as *write-through*, is to immediately write \\( w \\)'s cache block to the next lower level. While simple, write-through has the disadvantage of causing bus traffic with every write. Another approach, known as *write-back*, defers the update as long as possible by writing the updated block to the next lower level when it is evicted from the cache by the replacement algorithm. Because of locality, write-back can significantly reduce the amount of bus traffic, but it has the advantage pf additional complexity. The cache must maintain an additional *dirty bit* for each cache line that indicates whether or not the cache block has been modified.
 
 ## Running Programs on a System
 ### Linking
@@ -124,11 +268,11 @@ The shell invokes a function in the operating system called the *loader*, which 
 .symtab: A *symbol table* with information about functions and global variables that are defined and referenced in the program.
 
 #### Symbols and Symbol Tables
-Each relocatable object module, *m*, has a symbol table that contains information about the symbols defined and referenced by *m*. In the context of a linker, there are three different kinds of symbols:
-- *Global symbols* that are defined by module *m* and that can be referenced by other modules.
-- Global symbols that are referenced by module *m* but defined by some other module.
+Each relocatable object module, \\( m \\), has a symbol table that contains information about the symbols defined and referenced by \\( m \\). In the context of a linker, there are three different kinds of symbols:
+- *Global symbols* that are defined by module \\( m \\) and that can be referenced by other modules.
+- Global symbols that are referenced by module \\( m \\) but defined by some other module.
 Such symbols are called *externals* and correspond to nonstatic C functions and global variables that are defined in other modules.
-- *Local symbols* that are defined and referenced exclusively by module *m*.
+- *Local symbols* that are defined and referenced exclusively by module \\( m \\).
 
 Symbol tables are built by assemblers, using symbols exported by the compiler into the assembly language. An ELF symbol table is contained in the `.symtab` section. It contains an array of entries.
 
@@ -226,16 +370,16 @@ The `-static` argument tells the compiler driver that the linker should build a 
 When the linker runs, it determines that the `addvec` symbol defined by `addvec.o` is referenced by `main.o`, so it copies `addvec.o` into the executable. Since the program doesn't reference any symbols defined by `multvec.o`, the linker does not copy this module into the executable. The linker also copies `printf.o` module from `libc.a`, along with a number of other modules from the C run-time system.
 
 ##### How Linkers Use Static Libraries to Resolve References
-During the symbol resolution phase, the linker scans the relocatable object files and archives left to right in the same sequential order that they appear on the compiler driver's command line. During this scan, the linker maintains a set *E* of relocatable object files that will be merged to form the executable, a set *U* of unresolved symbols, and a set *D* of symbols that have been defined in previous input files.
-- For each input file *f* on the command line, the linker determines if *f* is an object file or an archive. If *f* is an object file, the linker adds *f* to *E*, updates *U* and *D* to reflect the symbol definitions and references in *f*, and proceeds to the next input file.
-- If *f* is an archive, the linker attempts to match the unresolved symbols in *U* against the symbols defined by the members of the archive. If some archive member, *m*, defines a symbol that resolves a reference in *U*, then *m* is added to *E*, and the linker updates *U* and *D* to reflect the symbol definitions and references in *m*. This process iterates over the member object files in the archive until a fixed point is reached where *U* and *D* no longer change. At this point, any member object files not contained in *E* are simply discarded and the linker proceeds to the next input file.
-- If *U* is nonempty when the linker finishes scanning the input files on the command line, it prints an error and terminates. Otherwise, it merges and relocates the object files in *E* to build the output executable file.
+During the symbol resolution phase, the linker scans the relocatable object files and archives left to right in the same sequential order that they appear on the compiler driver's command line. During this scan, the linker maintains a set \\( E \\) of relocatable object files that will be merged to form the executable, a set \\( U \\) of unresolved symbols, and a set \\( D \\) of symbols that have been defined in previous input files.
+- For each input file \\( f \\) on the command line, the linker determines if \\( f \\) is an object file or an archive. If \\( f \\) is an object file, the linker adds \\( f \\) to \\( E \\), updates \\( U \\) and \\( D \\) to reflect the symbol definitions and references in \\( f \\), and proceeds to the next input file.
+- If \\( f \\) is an archive, the linker attempts to match the unresolved symbols in \\( U \\) against the symbols defined by the members of the archive. If some archive member, \\( m \\), defines a symbol that resolves a reference in \\( U \\), then \\( m \\) is added to \\( E \\), and the linker updates \\( U \\) and \\( D \\) to reflect the symbol definitions and references in \\( m \\). This process iterates over the member object files in the archive until a fixed point is reached where \\( U \\) and \\( D \\) no longer change. At this point, any member object files not contained in \\( E \\) are simply discarded and the linker proceeds to the next input file.
+- If \\( U \\) is nonempty when the linker finishes scanning the input files on the command line, it prints an error and terminates. Otherwise, it merges and relocates the object files in *E* to build the output executable file.
 
 If the library that defines a symbol appears on the command line before the object file that references that symbol, then the reference will not be resolved and linking will fail. For example, consider the following:
 ```
 linux> gcc -static ./libvector.a main2.c
 ```
-When `libvector.a` is processed, *U* is empty, so no member object files from `libvector.a` are added to *E*. Thus, the reference to `addvec` is never resolved and the linker emits an error message and terminates.
+When `libvector.a` is processed, \\( U \\) is empty, so no member object files from `libvector.a` are added to \\( E \\). Thus, the reference to `addvec` is never resolved and the linker emits an error message and terminates.
 
 GNU linker option: `--as-needed` and `--no-as-needed`
 
@@ -465,3 +609,54 @@ linux> LD_PRELOAD="./mymalloc.so" ./intr
 malloc(32) = 0x1bf7010
 free(0x1bf7010)
 ```
+
+### Exceptional Control Flow
+#### Exceptions
+Exceptions are a form of exceptional control flow that are implemented partly by the hardware and partly by the operating system. Because they are partly implemented in hardware, the details vary from system to system. However, the basic ideas are the same for every system. Our aim in this section is to give you a general understanding of exceptions and exception handling and to help demystify what is often a confusing aspect of modern computer systems.
+
+An *exception* is an abrupt change in the control flow in response to some change in the processor's state.
+
+In the figure, the processor is executing some current instruction \\( I_{curr} \\). when a significant change in the processor's *state* occurs. The state is encoded in various bits and signals inside the processor. The change in state is known as an *event*. The event might be directly related to the execution of the current instruction. For example, a virtual memory page fault occurs, an arithmetic overflow occurs, or an instruction attempts a divide by zero. On the other hand, the event might be unrelated to the execution of the current instruction. For example, a system timer goes off or an I/O request completes.
+
+In any case, when the processor detects that the event has occurred, it makes an indirect procedure call (the exception), through a jump table called an *exception table*, to an operating system subroutine (the *exception handler*) that is specifically designed to process this particular kind of event.
+
+##### Exception Handling
+Each type of possible exception in a system is assigned a unique nonnegative integer *exception number*. Some of these numbers are assigned by the designers of the processor. Other numbers are assigned by the designers of the operating system *kernel* (the memory-resident part of the operating system). Examples of the former include divide by zero, page faults, memory access violations, breakpoints,and arithmetic overflows. Examples of the latter include system calls and signals from external I/O devices.
+
+At system boot time, the operating system allocates and initializes a jump table called an *exception table*, so that entry \\( k \\) contains the address of the handler for exception \\( k \\).
+
+At run time (when the system is executing some program), the processor detects that an event has occurred and determines the corresponding exception number \\( k \\). The processor then triggers the exception by making an indirect procedure call, through entry \\( k \\) of the exception table, to the corresponding handler. The exception number is an index into the exception table, whose starting address is contained in a special CPU register called the *exception table base register*.
+
+##### Classes of Exceptions
+**Interrupts**
+
+*Interrupts* occur *asynchronously* as a result of signals from I/O devices that are external to the processor. Hardware interrupts are asynchronous in the sense that they are not caused by the execution of any particular instruction. Exception handlers for hardware interrupts are often called *interrupt handlers*.
+
+I/O devices such as network adapters, disk controllers, and timer chips trigger interrupts by signaling a pin on the processor chip and placing onto the system bus the exception number that indicates the device that caused the interrupt.
+
+After the current instruction finishes executing, the processor notices that the interrupt pin has gone high, reads the exception number from the system bus, and then calls the appropriate interrupt handler.
+
+**Traps and System Calls**
+
+The most important use of traps is to provide a procedure-like interface between user programs and the kernel, known as *system call*.
+
+User programs often need to request services from the kernel such reading a file (`read`), creating a new process (`fork`), loading a new program (`execve`), and terminating the current process (`exit`).
+
+From a programmer's perspective, a system call is identical to a regular function call. However, their implementations are quite different. Regular functions run in *user mode*, which restricts the types of instructions they can execute, and they access the same stack as the calling function. A system call runs in *kernel mode*, which it allows it to execute privileged instructions and access a stack defined in the kernel.
+
+#### Processes
+##### User and Kernel Modes
+Processors typically provide this capability with a *mode bit* in some control register that characterizes the privileges the process currently enjoys. When the mode bit is set, the process is running in *kernel mode*. A process running in kernel mode can execute any instruction in the instruction set and access any memory location in the system.
+
+When the mode bit is not set, the process is running in *user mode*. A process in user mode is not allowed to execute *privileged instructions* that do things such as halt the processor, change the mode bit, or initiate an I/O instruction. Nor is it allowed to directly reference code or data in the kernel area of the address space. Any such attempt results in a fatal protection fault.
+
+A process running application code is initially in user mode. The only way for the process to change from user mode to kernel mode is via an exception such as an interrupt, a fault, or a trapping system call. When the exception occurs, and control passes to the exception handler, the processor changes mode from user mode to kernel mode. The handler runs in kernel mode. When it returns to the application mode, the processor changes from kernel mode back to user mode.
+
+##### Context Switches
+The operating system kernel implements multitasking using a higher-level form of exceptional control flow known as a *context switch*.
+
+The kernel maintains a *context* for each process. The context is the state that the kernel needs to restart a preempted process. It consists of the values of objects such as the general-purpose registers, the floating-point registers, the program counter, user's stack, status registers, kernel's stack, and various kernel data structures such as a *page table* that characterizes the address space, a *process table* that contains information about the current process, and a *file table* that contains information about the files that the process has opened.
+
+At certain points during the execution of a process, the kernel can decide to preempt the current process and restart a previously preempted process. This decision is known as *scheduling* and is handled by code in the kernel, called the *scheduler*. When the kernel selects a new process to run, we say that the kernel has *scheduled* that process. After the kernel has scheduled a new process to run, it preempts the current process and transfers control to the new process using a mechanism called a *context switch* that (1) saves the context of the current process, (2) restores the saved context of some previously preempted process, and (3) passes control to this newly restored process.
+
+A context switch can occur while the kernel is executing a system call on behalf of the user. If the system call blocks because it is waiting for some event to occur, then the kernel can put the current process to sleep and switch to another process. For example, if a `read` system call requires a disk access, the kernel can opt to perform a context switch and run another process instead of waiting for the data to arrive from the disk.
