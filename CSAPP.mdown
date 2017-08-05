@@ -70,6 +70,26 @@ The most significant bit \\( x_{w-1} \\) is also called the *sign bit*. Its "wei
 Adding character 'U' or 'u' as a suffix creates an unsigned constant; for example, `12345U` or `Ox1A2Bu`.
 
 ### Machine-Level Representation of Programs
+#### Heterogeneous Data Structures
+##### Unions
+Unions provide a way to circumvent the type system of C, allowing a single object to be referenced according to multiple types. The syntax of a union declaration is identical to that of structures, but its semantics are very different. Rather than having the different fields reference different blocks of memory, they all reference the same block.
+
+Consider the following declarations:
+```C
+union U3 {
+    char c;
+    int i[2];
+    double v;
+}
+```
+When compiled on an x86-64 Linux machine, the offsets of the fields, as well as the total size of data type `U3`, are as shown in the following table:
+
+Type | c | i | v | Size
+------------ | ------------- | ------------- | ------------- | -------------
+U3 | 0 | 0 | 0 | 8
+
+For pointer `p` of type `union U3 *`, references `p->c`, `p->i[0]`, and `p->v` would all references the beginning of the data structure. Observe also that the overall size of a union equals the maximum size of any of its fields.
+
 #### Combining Control and Data in Machine-Level Programs
 ##### Thwarting Buffer Overflow Attacks
 **Stack Randomization**
@@ -89,6 +109,98 @@ int main() {
 This code simply prints the address of a local variable in the `main` function. Running the code 10000 times on a Linux machine in 32-bit mode, the address ranged from `0xff7fc59c` to `0xffffd09c`, a range of around \\( 2^{23} \\).
 
 Stack randomization has become standard practice in Linux systems. It is one of a larger class technique known as *address-space layout randomization*, or ASLR. With ASLR, different parts of the program, including program code, library code, stack, global variables, and heap data, are loaded into different regions of memory each time a program is run. That means that a program running on one machine will have very different address mappings than the same program running on other machines. This can thwart some forms of attack.
+
+### Processor Architecture
+So far, we have only viewed computer systems down to the level of machine language programs. We have seen that a processor must execute a sequence of instructions, where each instruction performs some primitive operation, such as adding two numbers. An instruction is encoded in binary form as a sequence of 1 or more bytes. The instructions supported by a particular processor and their byte-level encodings are known as *instruction set architecture* (ISA). Different "families" of processors, such as Intel IA32 and x86-64, IBM/Freescale Power, and the ARM processor family, have different ISAs. A program compiled for one type of machine will not run on another.
+
+In this chapter, we take a brief look at the design of processor hardware. We study the way a hardware system can execute the instructions of a particular ISA. This view will give you a better understanding of how computers work and the technological challenges faced by computer manufactures. One important concept is that the actual way a modern processor operates can be quite different from the model of computation supplied by the ISA. The ISA model would seem to imply *sequential* instruction execution, where each instruction is fetched and executed to completion before the next one begins.
+
+In this chapter, we start by defining a simple instruction set that we use as a running example for our processor implementations. We call this the "Y86-64" instruction set, because it was inspired by the x86-64 instruction set. Compared with x86-64, the Y86-64 instruction set has fewer data types, instructions, and addressing modes.
+
+As a first step in designing a processor, we present a functionally correct, but somewhat impractical, Y86-64 processor based on *sequential* operation. This processor executes a complete Y86-64 instruction on every clock cycle.
+
+#### The Y86-64 Instruction Set Architecture
+##### Programmer-Visible State
+As Figure 4.1 illustrates, each instruction in a Y86-64 program can read and modify some part of the processor state. This is referred to as the *programmer-visible* state, where the "programmer" in this case is either someone writing programs in assembly-code or a compiler generating machine-level code. The state for Y86-64 is similar to that for x86-64. There are 15 *program registers*: `%rax`, `%rcx`, `%rdx`, `%rbx`, `%rsp`, `%rbp`, `%rsi`, `%rdi`, and `%r8` through `%r14`. Each of these stores a 64-bit word. The program counter (PC) holds the address of the instruction currently being executed.
+
+The *memory* is conceptually a large array of bytes, holding both program and data. Y86-64 programs reference memory locations using *virtual address*. A combination of hardware and operating system software translates these into the actual, or *physical*, address indicating where the values are actually stored in memory.
+
+A final part of the program state is a status code `Stat`, indicating the overall state of the program execution. It will indicate either normal operation or some sort of *exception* has occurred, such as an instruction attempts to read from an individual memory address.
+
+##### Y86-64 Instructions
+Figure 4.2 gives a description of the individual instructions in the Y86-64 ISA. We use this instruction set as a target for our processor implementations. In this figure, we show the assembly-code representation of the instructions on the left and the byte encodings on the right. The assembly-code format is similar to the ATT format for x86-64.
+
+![Y86-64 instruction set.](y86-64_instruction_set.png)
+
+Here are some details about the Y86-64 instructions.
+- The x86-64 `movq` instruction is split into four different instructions: `irmovq`, `rrmovq`, `mrmovq`, and `rmmovq`, explicitly indicating the form of the source and destination. The source is either immediate (`i`), register (`r`), or memory (`m`). It is designated by the first character in the instruction name. The destination is either register (`r`) or memory (`m`). Is is designated by the second character in the instruction name.<br>
+   As with x86-64, we do not allow direct transfer from one memory location to another. In addition, we do not allow a transfer of immediate data to memory.
+- There are four integer operation instructions, as shown in Figure 4.2 as `OPq`. These are `addq`, `subq`, `andq`, and `xorq`. They operate only on register data, whereas x86064 allows operations on memory data.
+- The `call` function pushes the return address on the stack and jumps to the destination address. The `ret` instruction returns from such a call.
+- The `pushq` and `popq` instructions implement push and pop, just as they do in x86-64.
+
+#### Instruction Encoding
+Figure 4.2 shows the byte-level encodings of the instructions. Each instruction requires between 1 and 10 bytes, depending on which fields are required. Every instruction has an initial byte identifying the instruction type.
+
+As shown in Figure 4.4, each of the 15 program register has an associated *register identifier* (ID) ranging from `0` to `0xE`. The program registers are stored within the CPU in a *register file*, a small random access memory where the register IDs serve as addresses.
+
+Number | Register name
+------------ | -------------
+0 | `%rax`
+1 | `%rcx`
+2 | `%rdx`
+3 | `%rbx`
+4 | `%rsp`
+5 | `%rbp`
+6 | `%rsi`
+7 | `%rdi`
+8 | `%r8`
+9 | `%r9`
+A | `%r10`
+B | `%r11`
+C | `%r12`
+D | `%r13`
+E | `%r14`
+F | No register
+
+Some instructions are just 1 byte long, but those that require operands have longer encodings. First, there can be an additional *register specifier type*, specifying either one or two registers. These registers are called `rA` and `rB` in Figure 4.2. As the assembly-code versions of the instructions show, they can specify the registers used for data sources and destinations, as well as the base register used in an address computation, depending on the instruction type. Instructions that have no operands, such as branches and `call`, do not have a register specifier byte.
+
+Some instructions require an additional 8-byte *constant word*. This word can serve as the immediate data for `irmovq`, the displacement for `rmmovq` and `mrmovq` address specifiers, and the destination of branches and calls.
+
+As an example, let us generate the byte encoding of the instruction `rmmovq %rsp, 0x123456789abcd(%rdx)` in hexadecimal. From Figure 4.2, we can see that `rmmovq` has initial byte 40. We can also see that source register `%rsp` should be encoded in the `rA` field, and base register `%rdx` should be encoded in the `rB field`. Using the register numbers in Figure 4.4, we get a register specifier type of 42. Finally, the displacement is encoded in the 8-byte constant word. We first pad `0x123456789abcd` with leading zeros to fill out 8 bytes, giving a byte sequence of `00 01 23 45 67 89 ab cd`. We rewrite this in byte-reversed order as `cd ab 89 67 45 23 01 00`. Combining this, we get an instruction encoding of `4042cdab896745230100`.
+
+One important property of any instruction set is that the byte encodings must have a unique interpretation.
+
+#### Sequential Y86-64 Implementations
+Now we have the components required to implement a Y86-64 processor. As a first step, we describe a processor called SEQ (for "sequential" processor). On each clock cycle, SEQ performs all the steps required to process a complete instruction. This would require a very long cycle time, however, and so the clock rate would be unacceptable low.
+
+##### Organizing Processing into Stages
+In general, processing an instruction involves a number of operations. We organize them in a particular sequence of stages, attempting to make all instructions follow a uniform sequence, even though the instructions differ greatly in their actions.
+
+- *Fetch.* The fetch stage reads the bytes of an instruction from memory, using the program counter (PC) as the memory address. From the instruction it extracts the two 4-bit portions of the instruction specifier type, referred to as `icode` (the instruction code) and `ifun` (the instruction function). It possibly fetches a register specifier byte, giving one or both the of register operands specifiers `rA` and `rB`. It also possibly fetches an 8-byte constant word `valC`. It computes `valP` to be address of the instruction following the current one in sequential order. That is, `valP` equals the value of the PC plus the length of the fetched instruction.
+- *Decode.* The decode stage reads up to two operands from the register file, giving values `valA` and/or `valB`. Typically, it reads the registers designated by instruction fields `rA` and `rB`,but for some instructions it reads register `%rsp`.
+- *Execute.* In the execute stage, the arithmetic logic unit (ALU) either performs the operation explicitly specified by the instruction (according to the value of `ifun`), computes the effective address of a memory reference, or increments or decrements the stack pointer. We refer to the resulting value as `valE`.
+- *Memory.* The memory stage may write data to memory, or it may read data from memory.
+- *Write back.* The write-back stage writes up to two results to the register file.
+- *PC update.* The PC is set to the address of the next instruction.
+
+The processor loops indefinitely, performing these stages. In our simplified implementation, the processor will stop when any exception occurs - that is, when it executes a `halt` or invalid instruction, or it attempts to read or write an invalid address. In a more complete design, the processor would enter an exception-handling mode and begin executing special code determined by the type of exception.
+
+Figure 4.18 shows the processing required for instruction types `OPq` (integer and logical operations), `rrmovq` (register -register move), and `irmovq` (immediate-register move). Let us consider the integer operations.
+
+![Computations in sequential implementation of Y86-64 instruction OPq, rrmovq, and irmovq.](y86-64_sequential_pushq.png)
+
+The processing of an integer-operation instruction follows the general pattern listed above. In the fetch stage, we do not require a constant word, and so `valP` is computed as `PC + 2`. During the decode stage, we read both operands. These are supplied to the ALU in the execute stage, along with the function specifier `ifun`, so that `valE` becomes the instruction result. This computation is shown as the expression `valB OP valA`, where `OP` indicates the operation specified by `ifun`. Nothing happens in the memory stage for these instructions, but `valE` is written to register `rB` in the write-back stage, and the PC is set to `valP` to complete the instruction execution.
+
+Figure 4.19 shows the processing required for the memory write and read instruction `rmmovq` and `mrmovq`. We see the same basic flow as before, but using the ALU to add `valC` to `valB`, giving the effective address (the sum of the displacement (offset) and the base register value (start of memory region)) for the memory operation. In the memory stage, we either write the register value `valA` to memory or read `valM` from memory.
+
+![Computations in sequential implementation of Y86-64 instruction rmmovq and mrmovq.](y86-64_sequential_rmmovq.png)
+
+The `pushq` instruction starts much like our previous instructions, but in the decode stage we use `%rsp` as the identifier for the second register operand, giving the stack pointer as value `valB`. In the execute stage, we use the ALU to decrement the stack pointer by 8. This decremented value is used for the memory write address and is also stored back to `%rsp` in the write-back stage.
+
+![Computations in sequential implementation of Y86-64 instruction rmmovq and mrmovq.](y86-64_sequential_call.png)
+
+Instructions `call` and `ret` bear some similarity to instructions `pushq` and `popq`, except that we push and pop program counter values. With instruction `call`, we push `valP`, the address of of the instruction that follows the `call` instruction. During the PC update stage, we set the `PC` to `valC`, the call destination.
 
 ### Optimizing Program Performance
 #### Program Profiling

@@ -226,6 +226,43 @@ Now let's consider acknowledgment numbers. Recall that TCP is full-duplex, so th
 
 As another example, suppose that Host A has received one segment from Host B containing bytes 0 through 535 and another segment containing bytes 900 through 1000. For some reason Host A has not yet received bytes 536 through 899. In this example, Host A is still waiting for byte 536 (and beyond) in order to re-create B's data stream. Thus, A's next segment to B will contain 536 in the acknowledgment number field. Because TCP only acknowledges bytes up to the first missing byte in the stream, TCP is said to provide **cumulative acknowledgments**.
 
+#### Flow Control
+Recall that the hosts on each side of a TCP connection set aside a receive buffer for the connection. When the TCP connection receives bytes that are correct and in sequence, it places the data in the receive buffer. The associated application process will read data from this buffer, not necessarily at the instant the data arrives. Indeed, the receiving application may be busy with some other task and may not even attempt to read the data until long after it has arrived. If the application is relatively slow at reading the data, the sender can very easily overflow the connection's receive buffer by sending too much data too quickly.
+
+TCP provides a **flow-control service** to its applications to eliminate the possibility of the sender overflowing the receiver's buffer. As noted earlier, a TCP sender can also be throttled due to congestion within the IP network; this form of sender control is referred to as **congestion control**. Event though the actions taken by flow and congestion control are similar (the throttling of the sender), they are obviously taken for very different reasons.
+
+TCP provides flow control by having the *sender* maintain a variable called the **receive window**. Informally, the receive window is used to give the an idea of how much free buffer space is available at the receiver. Because TCP is full-duplex, the sender at each side of the connection maintains a distinct receive window. Let's investigate the receive window in the context of a file transfer. Suppose that Host A is sending a large file to Host B over a TCP connection. Host B allocates a receive buffer to this connection; denote its size `RcvBuffer`. From time to time, the application process in Host B reads from the buffer. Define the following variables:
+- `LastByteRead:` the number of the last byte in the data stream read from the buffer by the application process in B
+- `LastByteRcvd:` the number of the last byte in the data stream that has arrived from the network and has been placed in the receive buffer at B
+
+Because TCP is not permitted to overflow the allocated buffer, we must have
+```
+LastByteRcvd - LastByteRead <= RcvBuffer
+```
+The receive window, denoted `rwnd` is set to the amount of spare room in the buffer:
+```
+rwnd = RcvBuffer - (LastByteRcvd - LastByteRead)
+```
+Because the spare room changes with time, `rwnd` is dynamic.
+
+How does the connection use the variable `rwnd` to provide the flow-control service? Host B tells Host A how much spare room it has in the connection buffer by placing its current value of `rwnd` in the receive window field of every segment it sends to A.
+
+Host A in turn keeps track of two variables, `LastByteSent` and `LastByteAcked`, which have obvious meanings. Note that the difference between these two variables, `LastByteSent - LastByteAcked`, is the amount of unacknowledged data that A has sent into the connection. By keeping the amount of unacknowledged data less than the value of `rwnd`, Host A is assured that it is not overflowing the receive buffer at Host B. Thus, Host A makes sure throughout the connection's life that
+```
+LastByteSent - LastByteAcked <= rwnd
+```
+
+### TCP Congestion Control
+We saw that each side of a TCP connection consists of a receive buffer, a send buffer, and several variables (`LastByteRead`, `rwnd`, and so on). The TCP-congestion control mechanism operating at the sender keeps track of an additional variable, the **congestion window**. The congestion window, denoted `cwnd`, imposes a constraint on the rate at which a TCP sender can send traffic into the next network. Specifically, the amount of unacknowledged data at a sender may not exceed the minimum of `cwnd` and `rwnd`, that is:
+```
+LastByteSent - LastByteAcked <= min{cwnd, rwnd}
+```
+In order to focus on congestion control (as opposed to flow control), let us henceforth assume that the TCP receiver buffer is so large that the receive-window constraint can be ignored; thus, the amount of unacknowledged data at the sender is solely limited by `cwnd`.
+
+The constraint above limits the amount of unacknowledged data at the sender and therefore indirectly limits the sender's send rate. 
+
+Let's next consider how a TCP sender perceives that there is congestion on the path between itself and the destination. Let us define a "loss event" at a TCP sender as the occurrence of either a timeout or the receipt of three duplicate ACKs from the receiver. When there is excessive congestion, then one (or more) router buffers along the path overflows, causing a datagram (containing a TCP segment) to be dropped. The dropped datagram, in turn, results in a loss event at the sender - either a timeout or the receipt of three duplicate ACKs - which is taken by the sender to be an indication of congestion on the sender-to-receiver path.
+
 ## The Network Layer
 ### Introduction
 a simple network with two hosts, H1 and H2, and several routers on the path between H1 and H2. Suppose that H1 is sending information to H2, and consider the role of the network layer in these hosts and in the intervening routers. The network layer in H1 takes segments from the transport layer in H1, encapsulates each segment into a datagram (that is, a network-layer packet), and then sends the datagram to its nearby router, R1. At the receiving host, H2, the network layer receives the datagram from its nearby router R2, extracts the transport-layer segments, and delivers the segments up to the transport layer at H2. The primary role of the routers is to forward datagrams from input links to output links. Note that the routers are shown with a truncated protocol stack, that is, with no upper layers above the network layer, because routers do not run application- and transport-layer protocols.
