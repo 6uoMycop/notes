@@ -152,16 +152,7 @@ Number | Register name
 3 | `%rbx`
 4 | `%rsp`
 5 | `%rbp`
-6 | `%rsi`
-7 | `%rdi`
-8 | `%r8`
-9 | `%r9`
-A | `%r10`
-B | `%r11`
-C | `%r12`
-D | `%r13`
-E | `%r14`
-F | No register
+... | ...
 
 Some instructions are just 1 byte long, but those that require operands have longer encodings. First, there can be an additional *register specifier type*, specifying either one or two registers. These registers are called `rA` and `rB` in Figure 4.2. As the assembly-code versions of the instructions show, they can specify the registers used for data sources and destinations, as well as the base register used in an address computation, depending on the instruction type. Instructions that have no operands, such as branches and `call`, do not have a register specifier byte.
 
@@ -203,7 +194,68 @@ The `pushq` instruction starts much like our previous instructions, but in the d
 Instructions `call` and `ret` bear some similarity to instructions `pushq` and `popq`, except that we push and pop program counter values. With instruction `call`, we push `valP`, the address of of the instruction that follows the `call` instruction. During the PC update stage, we set the `PC` to `valC`, the call destination.
 
 ### Optimizing Program Performance
-#### Program Profiling
+#### Capabilities and Limitations of Optimizing Compilers
+Modern compilers employ sophisticated algorithms to determine what values are computed in a program and how they are used. They can then exploit opportunities to simplify expressions, to use a single computation in several different places, and to reduce the number of times a given computation must be performed. Most compilers, including GCC, provide users with some control over which optimizations they apply. As discussed in Chapter 3, the simplest control is to specify the *optimization level*. For example, invoking GCC with the command-line option `-Og` specifies that it should apply a basic set of optimizations.
+
+Invoking GCC with option `-O1` or higher (e.g., `-O2` or `-O3`) will cause it to apply more extensive optimizations. These can further improve program performance, but they may extend the program size and they may make the program more difficult to debug using standard debugging tools. For our presentation, we will mostly consider code compiled with optimization level `-O1`, even though level `-O2` has become the accepted standard for most software projects that use GCC.
+
+Compilers must be careful to apply only *safe* optimizations to a program, meaning that the resulting program will have the exact same behavior as would an unoptimized version for all possible cases the program may encounter, up to the limits of the guarantees provided by the C language standards. Constraining the compiler to perform only safe optimizations eliminates possible sources of undesired run-time behavior, but it also means that the programmer must make more of an effort to write programs in a way that the compiler can then transform into efficient machine-level ·code. To appreciate the challenges of deciding which program transformations are safe or not, consider the following two procedures:
+```
+ 1    void twiddle1(long *xp, long *yp)
+ 2    {
+ 3        *xp += *yp;
+ 4        *xp += *yp;
+ 5    }
+ 6
+ 7    void twiddle2(long *xp, long *yp)
+ 8    {
+ 9        *xp += 2* *yp;
+10    }
+```
+At fist glance, both procedures seem to have identical behavior. They both add twice the value stored at the location designated by pointer `yp` to that designated by pointer `xp`. On the other hand, function `twiddle2` is more efficient. It requires only three memory references (read `*xp`, read `*yp`, write `*xp`), whereas `twiddle1` requires six (two reads of `*xp`, two reads of `*yp`, and two writes of `*xp`). Hence, if a compiler is given procedure `twiddle1` to compile, one might think it could generate more efficient code based on the computations performed by `twiddle2`.
+
+```
+1    long f();
+2
+3    long func1() {
+4        return f() + f() + f() + f();
+5    }
+```
+```
+1    int counter = 0;
+2
+3    int f() {
+4        return counter++;
+5    }
+```
+Code involving function calls can be optimized by a process known as *inline substitution* (or simply "inlining"), where the function call is replaced by the code for the body of the function. For example, we can expand the code for `func1` by substituting four instantiations of function `f`:
+```
+1    /* Result of inlining f in func1 */
+2    long func1in() {
+3        long t = counter++; /* +0 */
+4        t += counter++;     /* +1 */
+5        t += counter++;     /* +2 */
+6        t += counter++;     /* +3 */
+7        return t;
+8    }
+```
+This transformation both reduces the overhead of the function calls and allow further optimization of the expanded code. For example, the compiler can consolidate the updates of global variable `counter` in `func1in` to generate an optimized version of the function:
+```
+1    /* Optimization of inline code */
+2    long func1opt() {
+3        long t = 4 * counter + 6;
+4        counter += 4;
+5        return t;
+6    }
+```
+This code faithfully reproduces the behavior of `func1` for this particular definition of function `f`.
+
+Recent versions of GCC attempt this form of optimization, either when directed with the command-line option `-finline` or for optimization level `-O1` and higher.
+
+There are times when it is best to prevent a compiler from performing inline substitution. One is when the code will be evaluated using a symbolic debugger, such as GDB. If a function call has been optimized away via inline substitution, then any attempt to trace or set a breakpoint for that call will fail. The second if when evaluating the performance of a program by profiling. Calls to functions that have been eliminated by inline substitution will not be profiled correctly.
+
+#### Identifying and Eliminating Performance Bottlenecks
+##### Program Profiling
 Program *profiling* involves running a version of a program in which instrumentation code has been incorporated to determine how time the different parts of the program require. It can be very useful for identifying the parts of a program we should focus on in our optimization efforts. One strength of the profiling is that it can be performed while running the actual program on realistic benchmark data.
 
 Unix systems provide the profiling program `GRPOF`. This program generates two forms of information. First, it determines how much CPU time was spent for each of the functions in the program. Second, it computers a count of how many times each function gets called, categorized by which function performs the call. Both forms of information can be quite useful The timings give a sense of the relative importance of the different functions in determining the overall run time. The calling information allows us to understand the dynamic behavior of the program.
