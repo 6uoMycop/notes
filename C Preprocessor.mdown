@@ -43,6 +43,50 @@ struct foo {
 Here, the first inclusion of "grandfather.h" causes the macro `GRANDFATHER_H` to be defined. Then, when "child.c" includes "grandfather.h" the second time, the `#ifndef` test returns false, and the preprocessor skips down to the `#endif`, thus avoiding the second definition of `struct foo`. The program compiles correctly.
 
 ## Macros
+### Stringizing
+Sometimes you may want to convert a macro argument into a string constant. Parameters are not replaced inside string constants, but you can use the `'#'` preprocessing operator instead.
+
+Here is an example of a macro definition that uses stringizing:
+```C
+#define WARN_IF(EXP) \
+do {if (EXP) \
+       fprintf(stderr, "Warning: " #EXP "\n"); } \
+while (0)
+WARN_IF (x == 0);
+     -> do { if (x == 0)
+           fprintf(stderr, "Warning: " " x == 0" "\n"); } while (0);
+```
+
+### Concatenation
+When a macro is expanded, the two tokens on either side of each `'##'` operator are combined into a single token, which then replaces the `'##'` and the two original tokens in the macro expansion.
+
+Consider a C program that interprets named commands. There probably needs to be a table of commands, perhaps an array of structures declared as follows:
+```C
+struct command
+{
+    char *name;
+    void (*function) (void);
+};
+
+struct command commands [] =
+{
+    { "quit", quit_command},
+    { "help", help_command},
+    ...
+}
+```
+It would be cleaner not to have to give each command name twice, once in the string constant and once in the function name. A macro which takes the name of a command as an argument can make this unnecessary. The string constant can be created with stringizing, and the function name by concatenating the argument with `'_command'`. Here is how it is done:
+```C
+#define COMMAND(NAME) { #NAME, NAME ## _command}
+
+struct command commands[] =
+{
+    COMMAND (quit),
+    COMMAND (help),
+    ...
+}
+```
+
 ### Variadic Macros
 variadic macros have a variable number of arguments; these are mostly useful for dealing with variadic functions (like `printf`) that also take a variable number of arguments.
 

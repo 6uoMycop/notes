@@ -75,7 +75,24 @@ struct ibv_cq *ibv_create_cq(struct ibv_context *context, int cqe, void *cq_cont
 
 **Description:**
 
+**ibv_create_cq** creates a completion queue (CQ). A completion queue holds completion queue entries (CQE). Each Queue Pair (QP) has an associated send and receive CQ.
+
 The parameter cqe defines the minimum size of the queue. The actual size of the queue may be larger than the specified value.
+
+The parameter cq_context is a user defined value. If specified during CQ creation, this value will be returned as a parameter **ibv_get_cq_event** when using a completion channel (CC).
+
+The parameter channel is used to specify a CC. A CQ is merely a queue that does not have a built in notification mechanism. When using a polling paradigm for CQ processing, a CC is unnecessary. The user simply polls the CQ at regular intervals. If, however, you wish to use a pend parameter, a CC is required. The CC is the mechanism that allows the user to be notified that a new CQE is on the CQ.
+
+#### ibv_create_comp_channel
+**Template:**
+
+```
+struct ibv_comp_channel *ibv_create_comp_channel(struct ibv_context *context)
+```
+
+**Description:**
+
+**ibv_create_comp_channel** creates a completion channel. A completion channel is a mechanism for the user to receive notifications when new completion queue event (CQE) has been placed on a completion queue.
 
 ### Protection Domain Operations
 #### ibv_reg_mr
@@ -175,6 +192,36 @@ sq_psn / IBV_SQ_PSN        send queue starting packet sequence number (should ma
 Once the QP is transitioned into the RTS state, the QP begins send processing and is fully operational. The user may now post send requests with the **ibv_post_send** command.
 
 ### Active Queue Pair Operations
+#### ibv_req_notify_cq
+**Template:**
+
+```
+int ibv_req_notify_cq(struct ibv_cq *cq, int solicited_only)
+```
+
+**Description**
+
+**ibv_req_notify_cq** arms the notification mechanism for the indicated completion queue (CQ). When a completion queue entry (CQE) is placed on the CQ, a completion event will be sent to the completion channel (CC) associated with the CQ.
+
+The user should use the **ibv_req_notify_cq** operation to receive the notification.
+
+The notification mechanism will only be armed for one notification. Once is notification is sent, the mechanism must be re-armed with a new call to **ibv_req_notify_cq**.
+
+#### ibv_get_cq_event
+**Template:**
+
+```
+int ibv_get_cq_event(struct ibv_comp_channel *channel, struct ibv_cq **cq, void **cq_context)
+```
+
+**Description**
+
+**ibv_get_cq_event** waits for a notification to be sent on the indicated completion channel (CC). Note that this is a blocking operation. The user should allocate pointers to a struct ibv_cq and a void to be passed into the function. They will be filled with the appropriate values upon return.
+
+Each notification MUST be acknowledged with the **ibv_ack_cq_events** operation.
+
+This operation only informs the user that a CQ has completion queue entries (CQE) to be processed, it does not actually process the CQEs. The user should use the **ibv_poll_cq** operation to process the CQEs.
+
 #### ibv_poll_cq
 **Template:**
 

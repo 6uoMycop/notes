@@ -1,4 +1,17 @@
 ## General Commands Manual
+### xargs
+#### SYNOPSIS
+```
+xargs [command [initial-arguments]]
+```
+#### DESCRIPTION
+xargs reads items from the standard input, delimited by blanks or newlines, and executes the `command` one or more times with any `initial-arguments` followed by items read from standard input.
+#### EXAMPLE
+```
+find /tmp -name core -type f -print | xargs /bin/rm -f
+```
+Find files named `core` in or below the directory `/tmp` and delete them. 
+
 ### find
 #### SYNOPSIS
 ```
@@ -38,7 +51,7 @@ The expression is made up of options (which affect overall operation rather than
 
 ### rsync
 #### DESCRIPTION
-Rsync  is  a fast and extraordinarily versatile file copying tool. 
+Rsync is a fast and extraordinarily versatile file copying tool. 
 #### EXAMPLES
 Here is a simple example that copies `/usr/local/` (recursively, in archive mode, using the `-a` swicth) to a remote system:
 ```

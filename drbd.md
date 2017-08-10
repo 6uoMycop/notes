@@ -37,3 +37,62 @@ Protocol D which operates like protocol A, with the following differences:
    1. If local machine fails, remote machine discards it's current epoch (uncommitted checkpoint)
 
 1. The system can also operate in usual primary/secondary mode, in which case, the functionality is identical to that of Protocol A, ie there are no checkpoints. Plain asynchronous replication.
+
+## Building, installing and configuring DRBD
+### Configuring DRBD
+#### Preparing your low-level storage
+After you have installed DRBD, you must set aside a roughly identically sized storage area on both cluster nodes. This will become the *lower-level device* for your DRBD resource. You may use any type of block device found on your system for this purpose. Typical examples include:
+- A hard drive partition (or a full physical hard drive),
+- an LVM Logical Volume or any other block device configured by the Linux device-mapper infrastructure
+
+For the purpose of this guide, we assume a very simple setup:
+- Both hosts have a free (currently unused) partition named `/dev/sda7`.
+- We are using internal meta data.
+
+#### Configuring your resource
+##### Example configuration
+For the purpose of this guide, we assume a minimal setup in line with the examples given in the previous sections:
+```
+resource r0 {
+  on alice {
+    device    /dev/drbd1;
+    disk      /dev/sda7;
+    address   10.1.1.31:7789;
+    meta-disk internal;
+  }
+  on bob {
+    device    /dev/drbd1;
+    disk      /dev/sda7;
+    address   10.1.1.32:7789;
+    meta-disk internal;
+  }
+}
+```
+This example configures DRBD in the following fashion:
+- Our cluster consists of two nodes, `alice` and `bob`.
+- We have a resource arbitrarily named `r0` which uses `/dev/sda7` as the lower-level device, and is configured with internal meta data.
+- The resource uses TCP port 7789 for its network connections, and bind to the IP addresses 10.1.1.31 and 10.1.1.32 respectively.
+
+##### The `resource` sections
+In fact, you can use a shorthand notation for the `on host` sub-sections, too: every option whose values are equal on both hosts may be specified directly in the `resource` section. Thus, we can further condense this section, in comparison with the example cited above:
+```
+resource r0 {
+  device    /dev/drbd1;
+  disk      /dev/sda7;
+  meta-disk internal;
+  on alice {
+    address   10.1.1.31:7789;
+  }
+  on bob {
+    address   10.1.1.32:7789;
+  }
+}
+```
+## DRBD-enabled applications
+### Using Xen with DRBD
+#### Using DRBD VBDs
+In order to use a DRBD resource as the virtual block device, you must add a line like the following to your Xen domU configuration:
+```
+disk = [ 'drbd:resource,xvda,w' ]
+```
+This example configuration makes the DRBD resource named *`resource`* available to the domU as `/dev/xvda` in read/write mode (`w`).
