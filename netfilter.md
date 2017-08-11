@@ -94,14 +94,14 @@ There are several ways to manipulate rules inside a chain:
 4. Delete a rule at some position in a chain, or the first that matches (-D)
 
 ##### What You'll See When Your Computer Starts Up
-Before any iptables commands have been run, there will be no rules in any of the built-in chains (`INPUT', `FORWARD' and `OUTPUT'), all the chains will have a policy of ACCEPT. You can alter the default policy of the FORWARD chain by providing the `forward=0' option to the iptable_filter module.
+Before any iptables commands have been run, there will be no rules in any of the built-in chains (`INPUT`, `FORWARD` and `OUTPUT`), all the chains will have a policy of ACCEPT. You can alter the default policy of the FORWARD chain by providing the `forward=0` option to the iptable_filter module.
 
 ##### Operations on a Single Rule
 This is the bread-and-butter of packet filtering; manipulating rules. Most commonly, you will probably use the append (-A) and delete (-D) commands. The others (-I for insert and -R for replace) are simple extensions of these concepts.
 
-Each rule specifies a set of conditions the packet must meet, and what to do if it meets them (a `target'). For example, you might want to drop all ICMP packets coming from the IP address 127.0.0.1. So in this case our conditions are that the protocol must be ICMP and that the source address must be 127.0.0.1. Our target is `DROP'.
+Each rule specifies a set of conditions the packet must meet, and what to do if it meets them (a `target`). For example, you might want to drop all ICMP packets coming from the IP address 127.0.0.1. So in this case our conditions are that the protocol must be ICMP and that the source address must be 127.0.0.1. Our target is `DROP`.
 
-127.0.0.1 is the `loopback' interface, which you will have even if you have no real network connection. You can use the `ping' program to generate such packets (it simply sends an ICMP type 8 (echo request) which all cooperative hosts should obligingly respond to with an ICMP type 0 (echo reply) packet). This makes it useful for testing.
+127.0.0.1 is the `loopback` interface, which you will have even if you have no real network connection. You can use the `ping` program to generate such packets (it simply sends an ICMP type 8 (echo request) which all cooperative hosts should obligingly respond to with an ICMP type 0 (echo reply) packet). This makes it useful for testing.
 ```
     # ping -c 1 127.0.0.1
     PING 127.0.0.1 (127.0.0.1): 56 data bytes
@@ -118,9 +118,9 @@ Each rule specifies a set of conditions the packet must meet, and what to do if 
     1 packets transmitted, 0 packets received, 100% packet loss
     #
 ```
-You can see here that the first ping succeeds (the `-c 1' tells ping to only send a single packet).
+You can see here that the first ping succeeds (the `-c 1` tells ping to only send a single packet).
 
-Then we append (-A) to the `INPUT' chain, a rule specifying that for packets from 127.0.0.1 (`-s 127.0.0.1') with protocol ICMP (`-p icmp') we should jump to DROP (`-j DROP').
+Then we append (-A) to the `INPUT` chain, a rule specifying that for packets from 127.0.0.1 (`-s 127.0.0.1`) with protocol ICMP (`-p icmp`) we should jump to DROP (`-j DROP`).
 
 Then we test our rule, using the second ping. There will be a pause before the program gives up waiting for a response that will never come.
 
