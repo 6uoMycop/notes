@@ -1,4 +1,9 @@
 ## RDMA-Aware Programming Overview
+
+### Available Communication Operations
+#### RDMA Write / RDMA Write With Immediate
+Similar to RDMA read, but the data is written to the remote host. RDMA write operations are performed with no notification to the remote host. RDMA write with immediate operations, however, do notify the remote host of the immediate value.
+
 ### Transport Modes
 
 Operation | UD | UC | RC
@@ -172,8 +177,11 @@ traffic_class    traffic class
 
 ```
 *** Connected QPs only ***
-rq_psn / IBV_QP_RQ_PSN     starting receive packet sequence number (should match remote QP's sq_psn)
+rq_psn / IBV_QP_RQ_PSNstarting receive packet sequence number (should match remote QP's sq_psn)
+min_rnr_timer / IBV_QP_MIN_RNR_TIMERminimum RNR NAK timer (recommended value: 12)
 ```
+
+> If one exceeds the credit, the responder returns a RNR-NAK (receiver not ready) with a time to wait before trying again.
 
 **Effect of transition**
 
@@ -184,14 +192,34 @@ Once the QP is transitioned into the RTR state, the QP begins receive processing
 
 ```
 *** Connected QPs only ***
-sq_psn / IBV_SQ_PSN        send queue starting packet sequence number (should match remote QP's rq_psn)
+rnr_retry / IBV_QP_RNR_RETRYRNR retry count (recommended value: 7)
+sq_psn / IBV_SQ_PSN send queue starting packet sequence number (should match remote QP's rq_psn)
 ```
+
+> Setting `rnr_retry` to 7 indicates that we want the adapter to resend indefinitely if the peer responds with a receiver-not-ready (RNR) error. RNRs happen when a send request is posted before a corresponding receive request is posted on the peer.
 
 **Effect of transition**
 
 Once the QP is transitioned into the RTS state, the QP begins send processing and is fully operational. The user may now post send requests with the **ibv_post_send** command.
 
 ### Active Queue Pair Operations
+#### ibv_post_send
+**Description**
+
+The buffers used by a WR can only be safely reused after the WR has been fully executed and a WCE has been retrieved from the corresponding CQ. However, if the IBV_SEND_INLINE flag was set, the buffer can be reused immediately after the call returns.
+
+struct ibv_send_wr is defined as follows:
+```
+send flags:
+IBV_SEND_SIGNALED    send completion event for this WR. Only meaningful for QPs that had the sq_sig_all set to 0
+IBV_SEND_INLINE      send data in sge_list as inline data.
+```
+
+> Verbs are usually posted to the send queue of a QP (except RECV, which is posted to the receive queue). To post a verb to RNIC, an application calls into the userland RDMA driver. Then the driver prepares a Work Queue Element (WQE) in the host's memory and rings a doorbell on the RNIC via Programmed IO (PIO). For ConnectX and newer RNICs, the doorbell contains the entire WQE. For WRITE and SEND verbs, the WQE is associated with a payload that needs to be sent to the remote host. A payload up to the maximum PIO size (256 in our setup) can be *inlined* in the WQE, otherwise it can be fetched by the RNIC via a DMA read. An inlined post involves no DMA operations, reducing latency and increasing throughput for small payloads.
+
+> When the RNIC completes the network steps associated with the verb, it pushes a notification event to the queue pair's associated completion queue (CQ) via a DMA write. Using completion events adds extra overhead to the RNIC's PCIe bus. This overhead can be reduced by using *selective signaling*. When using a
+selectively signaled send queue of size S, up to S-1 consecutive verbs can be *unsignaled*, i.e., a completion event will not be pushed for these verbs.
+
 #### ibv_req_notify_cq
 **Template:**
 
@@ -239,6 +267,9 @@ int ibv_poll_cq(struct ibv_cq *cq, int num_entries, struct ibv_wc *wc)
 The Work Request completed successfully.
 
 > In RC QP, a CQE with successful status of a Send Request means that an ACK was received by the sender. However, In UC QP, a CQE with successful status of a Send Request means that the message was sent; it isn't indicate that the message was received by the remote side ... (You will get a successful CQE even if the remote side didn't receive this message)
+
+#### IBV_WC_RNR_RETRY_EXC_ERR
+This event is generated when the RNR NAK retry count is exceeded. This may be caused by lack of receive buffers on the responder side.
 
 ## Programming Examples Using IBV Verbs
 ### Code for Send, Receive, RDMA Read, RDMA Write

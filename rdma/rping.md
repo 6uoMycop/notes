@@ -79,7 +79,6 @@
    rdma_reg_msgs()
 4. post first receive of ping data from client<br>
    rdma_post_recv()
-
 5. define properties of new connection<br>
    struct rdma_conn_param
 

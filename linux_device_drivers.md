@@ -79,14 +79,46 @@ struct file_operations scull_fops = {
 ```
 
 ## Debugging Techniques
+### Debugging by Querying
+#### Using the /proc Filesystem
+The /proc filesystem is a special, software-created filesystem that is used by the kernel to export information to the world. Each file under */proc* is tied to a kernel function that generates the file's "contents" on the fly when the file is read.
+
+*/proc* is heavily used in the Linux system. Many utilities on a modern Linux distribution, such as *ps*, *top*, and *uptime*, get their information from */proc*. Some device drivers also export information via */proc*, and yours can do so as well. The */proc* filesystem is dynamic, so your module can add or remove entries at any time.
+
+Fully featured */proc* entries can be complicated beasts; among other things, they can be written to as well as read from. Most of the time, however, */proc* entries are read-only files. This section concerns itself with the simple read-only case.
+
+##### Implementing files in /proc
+All modules that work with */proc* should include *<linux/proc_fs.h>* to define the proper functions.
+
+To create a read-only */proc* file, your driver must implement a function to produce the data when the file is read. When some process reads the file (using the *read* system call), the request reaches your module by means of this function.
+
+When a process reads from your */proc* file, the kernel allocates a page of memory (i.e., `PAGE_SIZE` bytes) where the driver can write data to be returned to user space. That buffer is passed to your function, which is a method called *read_proc*:
+```
+int (*read_proc)(char *page, char **start, off_t offset, int count,
+                 int *eof, void *data);
+```
+The `page` pointer is the buffer where you'll write your data;
+
 ### Debugging by Watching
 The *strace* command is a powerful tool that shows all the system calls issued by a user-space program. *strace* has many command-line options: the most useful of which are *-t* to display the time *when* each call is executed, *-T* to display the time spent in the call.
+
+## Concurrency and Race Conditions
+### Semaphore and Mutexes
+#### The Linux Semaphore Implementation
+```
+void down(struct semaphore *sem);
+int down_interruptible(struct semaphore *sem);
+```
+*down* decrements the value of the semaphore and waits as long as need be. *down_interruptible* does the same, but the operation is interruptible. The interruptible is almost always the one you will want; it allows a user-space that is waiting on a semaphore to be interrupted by the user. You do not, as a general rule, want to use noninterruptible operations unless there truly is no alternative. Noninterruptible operations are a good way to create unkillable process (the dreaded "D state" seen in *ps*), and annoy your users. Using *down_interruptible* requires some extra care, however, if the operation is interrupted, the function returns a nonzero value, and the caller does *not* hold the semaphore. Proper use of *down_interruptible* requires always checking the return value and responding accordingly.
 
 ## Communicating with Hardware
 
 ![Kernel IO Structure](Kernel_IO_Structure.jpg)
 
 ## Advanced Char Driver Operations
+### ioctl
+Most drivers need - in addition to the ability to read and write the device - the ability to perform various types of hardware control via the device driver. Most devices can perform operations beyond simple data transfers; user space must often be able to request, for example, that the device lock its door, eject its media, report error information, change a baud rate, or self destruct. These operations are usually supported via the *ioctl* method, which implements the system call by the same name.
+
 ### Blocking I/O
 Back in Chapter 3, we looked at how to implement the *read* and *write* driver methods. At that point, we skipped over one important issue: how does a driver respond if it cannot immediately satisfy the request? A call to *read* may come when no data is available, but more is expected in the future. Or a process could attempt to *write*, but your device is not ready to accept the data, because your output buffer is full. The calling process usually does not care about such issues: the programmer simply expects to call *read* or *write* and have the call return after the necessary work has been done. So, in such cases, your driver should block (by default) *block* the process, putting it to sleep until the request can proceed.
 
@@ -107,9 +139,12 @@ init_waitqueue_head(&my_head);
 #### Simple Sleeping
 When a process sleeps, it does so in expectation that some condition will becomes true in the future. As we noted before, any process that sleeps must check to be sure that the condition it was waiting for is really true when it wakes up again. The simplest way of sleeping in the Linux kernel is a macro called `wait_event`; it combines handling the details of sleeping with a check on the condition a process is waiting for. The forms of `wait_event` are:
 ```
-wait_event(queue, condition);
+wait_event(queue, condition)
+wait_event_interruptible(queue, condition)
 ```
 In all of the above forms, `queue` is the wait queue head to use. The `condition` is an arbitrary boolean expression that is evaluated by the macro before and after sleeping; until condition evaluates to a true value, the process continues to sleep.
+
+If you use *wait_event*, your process is put into an uninterruptible sleep which, as we have mentioned before, is usually not what you want. The preferred alternative is *wait_event_interruptible*, which can be interrupted by signals. This version returns an integer value that you should check; a nonzero value means your sleep was interrupted by some sort of signal, and your driver should probably return `-ERESTARTSYS`.
 
 The other half of the picture, of course, is waking up. Some other thread of execution (a different process, or an interrupt handler, perhaps) has to perform the wakeup for you, since your process is, of course, asleep. The basic function that wakes up sleeping processes is called *wake_up*. It comes in several forms:
 ```
@@ -155,7 +190,7 @@ Within a driver, a process blocked in a *read* call is awakened when data arrive
 
 #### Advanced sleeping
 ##### How a process sleeps
-If you look inside *<linux/wait.h>*, you see that the data structure behind the `wait_queue_head_t` is quite simple; it consists of a spinlock and a linked list. What goes on to that list is a wait queue entry, which is declared with the type *wait_queue_t*. This structure contains information about the sleeping process and exactly hos it would like to be woken up.
+If you look inside *<linux/wait.h>*, you see that the data structure behind the `wait_queue_head_t` is quite simple; it consists of a spinlock and a linked list. What goes on to that list is a wait queue entry, which is declared with the type *wait_queue_t*. This structure contains information about the sleeping process and exactly how it would like to be woken up.
 
 The first step in putting a process to sleep is usually the allocation and initialization of a `wait_queue_t` structure, followed by its addition to the proper wait queue.
 

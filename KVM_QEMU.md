@@ -7,6 +7,15 @@ Given that QEMU is a software-based emulator, it interprets and executes CPU ins
 3. A target instruction that cannot be directly executed can be identified and given to QEMU for emulator processing.
 
 The development of KVM was based on this idea.
+ 
+Later, when the guest system is about to execute a sensitive instruction, a VM Exit is performed (step 3), and KVM identifies the reason for the exit. If QEMU intervention is needed to execute an I/O task or another task, control is transferred to the QEMU process, and QEMU executes the task. On execution completion, QEMU again makes an ioctl() system call and requests the KVM to continue guest processing (i.e., execution flow returns to step 1). This QEMU/KVM flow is basically repeated during the emulation of a VM.
+
+QEMU/KVM thus has a relatively simple structure.
+1. Implementation of a KVM kernel module transforms the Linux kernel into a hypervisor.
+2. There is one QEMU process for each guest system. When multiple guest systems are running, the same number of QEMU processes are running.
+3. QEMU is a multi-thread program, and one virtual CPU (VCPU) of a guest system 
+corresponds to one QEMU thread. Steps 1-4 in Figure 3 are performed in units of threads.
+4. QEMU threads are treated like ordinary user processes from the viewpoint of the Linux kernel. Scheduling for the thread corresponding to a virtual CPU of the guest system, for  example, is  governed  by  the Linux kernel scheduler in the same way as other process threads.
 
 ## Using the KVM API
 ### Definition of the sample virtual machine
@@ -149,3 +158,15 @@ Step 5:
 - Similarly other entries are update as and when page fault happens
 - GVA 2 -> GPA 2 -> HVA 2 -> HPA B
 - GVA 3 -> GPA 3 -> HVA 3 -> HPA E
+
+## Virtio
+Let's start with a quick discussion of two distinct types of virtualization schemes: full virtualization and paravirtualization. In full virtualization, the guest operating system runs on top of a hypervisor that sits on the bare metal. The guest is unaware that it is being virtualized and requires no changes to work in this configuration. Conversely, in paravirtualization, the guest operating system is not only aware that it is running on a hypervisor but includes code to make guest-to-hypervisor transitions more efficient.
+
+![Device emulation in full virtualization and paravirtualization environments](virtio.png)
+
+But in traditional full virtualization environments, the hypervisor must trap these requests, and then emulate the behaviors of real hardware. Although doing so provides the greatest flexibility (namely, running an unmodified operating system), it does introduce inefficiency (see the left side of Figure 1). The right side of Figure 1 shows the paravirtualization case. Here, the guest operating system is aware that it's running on a hypervisor and includes drivers that act as the front end. The hypervisor implements the back-end drivers for the particular device emulation. These front-end and back-end drivers are where `virtio` comes in, providing a standardized interface for the development of emulated device access to propagate code reuse and increase efficiency. 
+
+## iothread and non-iothread architecture
+The newer architecture is one QEMU thread per vcpu plus a dedicated event loop thread. Each vcpu thread can execute guest code in parallel, offering true SMP support, while the iothread runs the event loop. The rule that core QEMU code never runs simultaneously is maintained through a global mutex that synchronizes core QEMU code across the vcpus and iothread. Most of the time vcpus will be executing guest code and do not need to hold the global mutex. Most of the time the iothread is blocked in `select(2)` and does not need to hold the global mutex.
+
+![QEMU Global Mutex](qemu_global_mutex.png)

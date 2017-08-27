@@ -1,0 +1,126 @@
+# proc filesystem
+The proc filesystem is a pseudo-filesystem which provides an interface to kernel data structures. It is commonly mounted at /proc.
+
+> Note: The /proc filesystem contains a illusionary filesystem. It does not exist on a disk. Instead, the kernel creates it in memory.
+
+The following list describes many of the files and directories under the /proc hierarchy.
+
+- /proc/[pid]<br>
+  There is a numerical subdirectory for each running process; the subdirectory is named by the process ID. Each such subdirectory contains the following pseudo-files and directories.
+- /proc/[pid]/fd/<br>
+  This is a subdirectory containing one entry for each file which the process has open, named by its file descriptor, and which is a symbolic link to the actual file. Thus, 0 is standard input, 1 standard output, 2 standard error, etc.
+- /proc/[pid]/io<br>
+  This file contains I/O statistics for the process, for example:
+  ```
+  # cat /proc/3828/io
+  rchar: 323934931
+  wchar: 323929600
+  syscr: 632687
+  syscw: 632675
+  read_bytes: 0
+  write_bytes: 323932160
+  cancelled_write_bytes: 0
+  ```
+  The fields are as follows:
+  - rchar: characters read<br>
+    The number of bytes which this task has caused to be read from storage. This is simply the sum of bytes which this process passed to `read` and similar system calls. It includes things such as terminal I/O and is unaffected by whether or not actual physical disk I/O was required (the read might have been satisfied from pagecache).
+  - wchar: characters written<br>
+    The number of bytes which this task has caused, or shall cause to be written to disk. Similar caveats apply here as with rchar.
+  - read_bytes: bytes read<br>
+    Attempt to count the number of bytes which this process really did cause to be fetched from the storage layer. This is accurate for block-backed filesystems.
+  - write_bytes: bytes written<br>
+    Attempt to count the number of bytes which this process caused to be sent to the storage layer.
+- /proc/[pid]/maps<br>
+  A file containing the currently mapped memory regions and their access permissions.
+  ```
+  address           perms offset  dev   inode       pathname
+  00400000-00452000 r-xp 00000000 08:02 173521      /usr/bin/dbus-daemon
+  00651000-00652000 r--p 00051000 08:02 173521      /usr/bin/dbus-daemon
+  00652000-00655000 rw-p 00052000 08:02 173521      /usr/bin/dbus-daemon
+  00e03000-00e24000 rw-p 00000000 00:00 0           [heap]
+  00e24000-011f7000 rw-p 00000000 00:00 0           [heap]
+  ...
+  35b1800000-35b1820000 r-xp 00000000 08:02 135522  /usr/lib64/ld-2.15.so
+  35b1a1f000-35b1a20000 r--p 0001f000 08:02 135522  /usr/lib64/ld-2.15.so
+  35b1a20000-35b1a21000 rw-p 00020000 08:02 135522  /usr/lib64/ld-2.15.so
+  35b1a21000-35b1a22000 rw-p 00000000 00:00 0
+  35b1c00000-35b1dac000 r-xp 00000000 08:02 135870  /usr/lib64/libc-2.15.so
+  35b1dac000-35b1fac000 ---p 001ac000 08:02 135870  /usr/lib64/libc-2.15.so
+  35b1fac000-35b1fb0000 r--p 001ac000 08:02 135870  /usr/lib64/libc-2.15.so
+  35b1fb0000-35b1fb2000 rw-p 001b0000 08:02 135870  /usr/lib64/libc-2.15.so
+  ...
+  f2c6ff8c000-7f2c7078c000 rw-p 00000000 00:00 0    [stack:986]
+  ...
+  7fffb2c0d000-7fffb2c2e000 rw-p 00000000 00:00 0   [stack]
+  7fffb2d48000-7fffb2d49000 r-xp 00000000 00:00 0   [vdso]
+  ```
+- /proc/cpuinfo
+  /proc/cpuinfo contains information about the system CPU (or CPUs, for a multiprocessor machine). The output is a table of values, one per line, with a description of the value and a colon preceding each value.
+
+  For example, the output might look like this:
+  ```
+  % cat /proc/cpuinfo
+  processor : 0
+  vendor_id : GenuineIntel
+  cpu family : 6
+  model : 5
+  model name : Pentium II (Deschutes)
+  stepping : 2
+  cpu MHz : 400.913520
+  cache size : 512 KB
+  fdiv_bug : no
+  hlt_bug : no
+  sep_bug : no
+  f00f_bug : no
+  coma_bug : no
+  fpu : yes
+  fpu_exception : yes
+  cpuid level : 2
+  wp : yes
+  flags : fpu vme de pse tsc msr pae mce cx8 apic sep
+  mtrr pge mca cmov pat pse36 mmx fxsr
+  bogomips : 399.77
+  ```
+  A simple way to extract a value from this output is to read the file into a buffer and parse it in memory using `sscanf`. The program includes the function `get_cpu_clock_speed` that reads from /proc/cpuinfo into memory and extracts the first CPU's clock speed.
+  ```C
+  #include <stdio.h>
+  #include <string.h>
+
+  /* Returns the clock speed of the system's CPU in MHz, as reported by
+     /proc/cpuinfo. On a multiprocessor machine, returns the speed of
+     the first CPU. On error returns zero. */
+
+  float get_cpu_clock_speed()
+  {
+      FILE *fp;
+      char buffer[1024];
+      size_t bytes_read;
+      char *match;
+      float clock_speed;
+
+      /* Read the entire contents of /proc/cpuinfo into the buffer */
+      fp = fopen("/proc/cpuinfo", "r");
+      bytes_read = fread(buffer, 1, sizeof(buffer), fp);
+      fclose(fp);
+      /* Bail if read failed or if buffer isn't big enough. */
+      if (bytes_read == 0 || bytes_read == sizeof(buffer))
+          return 0;
+      /* NUL-terminate the text. */
+      buffer[bytes_read] = '\0';
+      /* Locate the line that starts with "cpu MHz". */
+      match = strstr(buffer, "cpu MHz");
+      if (match == NULL)
+          return 0;
+      /* Parse the line to extract the clock speed. */
+      sscanf(match, "cpu MHz : %f", &clock_speed);
+      return clock_speed;
+  }
+
+  int main()
+  {
+      printf("CPU clock speed: %4.0f MHz\n", get_cpu_clock_speed());
+      return 0;
+  }
+  ```
+- /proc/[pid]/task<br>
+  This is a directory that contains one subdirectory for each thread in the process.  The name of each subdirectory is the numerical thread ID ([tid]) of the thread.

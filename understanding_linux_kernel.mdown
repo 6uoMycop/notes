@@ -1,0 +1,65 @@
+# Understanding the Linux Kernel
+## Processes
+### Process Descriptor
+#### Identifying a Process
+On the other hand, Unix-like operating systems allow users to identify processes by means of a number called the *Process ID* (or *PID*), which is stored in the `pid` field of the process descriptor. PIDs are numbered sequentially: the PID of a newly created process is normally the PID of the previously created process increased by one.
+
+On the other hand, Unix programmers expect threads in the same group to have a common PID. For instance, it should be possible to send a signal specifying a PID that affects all threads in the group.
+
+To comply with this standard, Linux makes use of thread groups. The identifier shared by the threads is the PID of the *thread group leader*, that is, the PID of the first lightweight process in the group; it is stored in the `tgid` field of the process descriptor. The `getpid()` system call returns the value of `tgid` relative to the current process instead of the value of `pid`, so all the threads of a multithreaded applications share the same identifier.
+
+## Interrupts and Exceptions
+### Interrupts and Exceptions
+#### IRQs and Interrupts
+Each hardware device controller capable of issuing interrupt requests usually has a single output line designated as the Interrupt ReQuest (IRQ) line. All existing IRQ lines are connected the input pins of a hardware circuit called the *Programmable Interrupt Controller*, which performs the following actions:
+
+1. Monitors the IRQ lines, checking for raised signals. If two or more IRQ lines are raised, selects the one having the lower pin number.
+2. If a raised signal occurs on an IRQ line:
+  1. Converts the raised signal received into a corresponding vector.
+  2. Stores the vector in an Interrupt Controller I/O port, thus allowing CPU to read it via the data bus.
+  3. Sends a raised signal to the processor INTR pin - that is, issue an interrupt.
+  4. Waits until the CPU acknowledges the interrupt signal by writing into of the *Programmable Interrupt Controllers* (*PIC*) I/O ports; when this occurs, clears the INTR line.
+3. Goes back to step 1.
+
+Each IRQ line can be selectively disabled. Thus, the PIC can be programmed to disable IRQs.
+
+Traditional PICs are implemented by connecting "in cascade" two 8259A-style external chips. Each chip can handle up to eight different IRQ input lines. Because the INT output line of the slave PIC is connected to the IRQ2 pin of the master PIC, the number of available IRQ lines is limited to 15.
+
+![Programmable Interrupt Controller](PIC.png)
+
+##### The Advanced Programmable Interrupt Controller (APIC)
+The previous description refers to IPCs designed for uniprocessor systems. If the system includes a single CPU, the output line of the master PIC can be connected in a straightforward way to the INTR pin the CPU. However, if the system includes two or more CPUs, this approach is no longer valid and more sophisticated PICs are needed.
+
+Being able to deliver interrupts to each CPU In the system is crucial for fully exploiting the parallelism of the SMP architecture. For that reason, Intel introduced starting with Pentium III a new component designated as the *I/O Advanced Programmable Interrupt Controller* (*I/O APIC*). This chip is the advanced version of the old 8259A Programmable Interrupt COntroller; to support old operating systems, recent montherboards include both types of chip. Moreover, all current 80x86 microprocessors include a *local APIC*. Each local APIC has 32-bit registers, an internal clock; a local timer device; and two additional IRQ lines, LINT0 and LINT1, reserved for *local APIC interrupts*. All local APICs are connected to an external I/O APIC, giving rise to a multi-APIC system.
+
+Figure 4-1 illustrates in a schematic way the structure of a multi-APIC system. An *APIC bus* connects the "frontend" I/O APIC to the local APICs. The IRQ lines coming from the devices are connected to the I/O APIC, which therefore acts as a router with respect to the local APICs.
+
+![The Advanced Programmable Interrupt Controller](APIC.png)
+
+## Timing Measurements
+### Clock and Timer Circuits
+#### Time Stamp Counter (TSC)
+All 80x86 microprocessors include a CLK input pin, which receives the clock signal of an external oscillator. Starting with the Pentium, 80x86 microprocessors sport a counter that is increased at each clock signal. The counter is accessible through the 64-bit *Time Stamp Counter (TSC)* register, which can be read by means of the `rdtsc` assembly language instruction. When using this register, the kernel has to take into consideration the frequency of the clock signal: if, for instance, the clock ticks at 1 GHz, the Time Stamp Counter is increased once every nanosecond.
+
+#### CPU Local Timer
+The local APIC present in recent 80 x 86 microprocessors (see the section "Interrupts and Exceptions" in Chapter 4) provides yet another time-measuring device: the CPU local timer.
+
+### Updating System Statistics
+The kernel, among the other time-related duties, must periodically collect various data used for:
+
+- Checking the CPU resource limit of the running process
+- Updating statistics about the local CPU workload
+- Computing the average system load
+- Profiling the kernel code
+
+#### Updating Local CPU Statistics
+We have mentioned that the `update_process_time` function is invoked - either by the global timer interrupt handler on uniprocessor systems or by the local timer interrupt handler in multiprocessor systems - to update some kernel statistics. This function performs the following steps:
+
+1. Checks how long the current process has been running. Depending on whether the current process was running in User Mode or in Kernel Mode when the timer interrupt occurred, invoked either `account_user_time()`  or `acccount_ssytem_time()`. Each of these functions performs essentially the following steps:
+   1. Updates either the `utime` filed (ticks spent in User Mode) or the `stime` field (ticks spent in Kernel mode) of the current process descriptor. Two additional fields called `cutime` and `cstime` are provided in the process descriptor to count the number of CPU ticks spent by the process children in User Mode and Kernel Mode, respectively. For reasons of efficiency, these fields are not updated by `update_process_times()`, but rather when the parent process queries the state of one of its children.
+   2. Checks whether the total CPU time limit has been reached; if so, sends `SIGXCPU` and `SIGKILL` signal to `current`.
+   3. Invokes `account_it_virt()` and `account_it_prof()` to check the process timers.
+   4. Updates some kernel statistics stored in the `kstat` per-CPU variable.
+2. Invokes `raise_softirq()` to activate the `TIMER_SOFTIRQ` tasklet on the local CPU.
+3. If some old version of an RCU-protected data structure has to be reclaimed, checks whether the local CPU has gone through a quiescent state and invokes `tasklet_schedule()` to activate the `rcu_tasklet` tasklet of the local CPU.
+4. Invokes the `scheduler_tick()` function, which decreases the time slice counter of the current process, and checks whether its quantum is exhausted.

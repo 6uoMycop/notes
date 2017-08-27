@@ -28,7 +28,7 @@ Now that we decided that we are going to break up the file into chunks, and writ
 This sequence lends itself well to an event-driven implementation - the client acts in response to a message from the server, and vice versa. Because the client only processes three types of messages from the server, and the server only processes the immediate data from incoming RDMA writes, our completion processing functions, where we do the bulk of work, will be relatively simple.
 
 ### Server
-```
+```C
 static void post_receive (struct rdma_cm_id *id)
 {
 	struct ibv_recv_wr wr , *bad_wr = NULL;
@@ -42,7 +42,7 @@ static void post_receive (struct rdma_cm_id *id)
 }
 ```
 
-```
+```C
 static void on_completion(struct ibv_wc *wc)
 {
 	struct rdma_cm_id *id = (struct rdma_cm_id *)(uintptr_t)wc->wr_id;
@@ -93,7 +93,7 @@ We retrieve the immediate data field in line 7 and convert it from network byte 
 2. If the first byte of ctx->filename is set, we already have the file name and have an open file descriptor. We call write() to append the client's data to our open file then reply with MSG_READY, indicating that we are ready to accept more data.
 3. Otherwise, we have yet to receive the file name. We copy it from the incoming buffer, open a descriptor, then reply with MSG_READY to indicate that we are ready to receive data.
 
-```
+```C
 static void send_message(struct rdma_cm_id *id)
 {
 	...
@@ -110,7 +110,7 @@ static void send_message(struct rdma_cm_id *id)
 ```
 
 ### Client
-```
+```C
 static void post_receive(struct rdma_cm_id *id) {
 	struct client_context *ctx = (struct client_context *)id->context;
 
@@ -131,7 +131,7 @@ static void post_receive(struct rdma_cm_id *id) {
 }
 ```
 
-```
+```C
 static void on_completion(struct ibv_wc *wc) {
 	struct rdma_cm_id *id = (struct rdma_cm_id *)(uintptr_t)(wc->wr_id);
 	struct client_context *ctx = (struct client_context *)id->context;
@@ -157,7 +157,7 @@ static void on_completion(struct ibv_wc *wc) {
 }
 ```
 
-```
+```C
 static void write_remote(struct rdma_cm_id *id, uint32_t len) {
 	struct client_context *ctx = (struct client_context *)id->context;
 

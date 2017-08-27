@@ -1,0 +1,26 @@
+In the following URL you can find a very simple example on how to use
+multicast:
+https://svn.openfabrics.org/svn/openib/trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/multicast_test.c
+
+
+If you want to use multicast in IB:
+you need to do the following things:
+
+receiver side:
+--------------
+create an UD QP
+attach this QP to a multicast group
+post RR to the RQ of this QP
+
+
+sender side:
+--------------
+post the message to remote QP number of 0xffffff, dlid which is the
+multicast LID and GID of the multicast (in the GRH of the AH).
+
+
+this test doesn't send an SA query (to get the multicast props) or an SA
+multicast join (to make the SM configure the subnet to make the port
+that this QP is attached to) to get the multicast messages.
+
+This example will work on a back-to-back topology.

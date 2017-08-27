@@ -1,0 +1,59 @@
+# iotop
+
+It also displays the percentage of time the thread/process spent while swapping in and while waiting on I/O.
+
+## Per-task statistics interface
+
+
+Taskstats is a netlink-based interface for sending per-task and
+per-process statistics from the kernel to userspace.
+
+### Terminology
+
+"pid", "tid" and "task" are used interchangeably and refer to the standard
+Linux task defined by struct task_struct.  per-pid stats are the same as
+per-task stats.
+
+"tgid", "process" and "thread group" are used interchangeably and refer to the
+tasks that share an mm_struct i.e. the traditional Unix process. Despite the
+use of tgid, there is no special treatment for the task that is thread group
+leader - a process is deemed alive as long as it has any task belonging to it.
+
+### Usage
+
+To get statistics during a task's lifetime, userspace opens a unicast netlink
+socket (NETLINK_GENERIC family) and sends commands specifying a pid or a tgid.
+The response contains statistics for a task (if pid is specified) or the sum of
+statistics for all tasks of the process (if tgid is specified).
+
+## The struct taskstats
+
+```
+struct taskstats {
+
+1) Common and basic accounting fields:
+
+
+2) Delay accounting fields:
+	/* Delay accounting fields start
+	 *
+	 * All values, until the comment "Delay accounting fields end" are
+	 * available only if delay accounting is enabled, even though the last
+	 * few fields are not delays
+	 *
+	 * xxx_delay_total is the corresponding cumulative delay in nanoseconds
+	 *
+	 * xxx_delay_total wraps around to zero on overflow
+	 */
+
+	/* Delay waiting for synchronous block I/O to complete
+	 * does not account for delays in I/O submission
+	 */
+	__u64	blkio_delay_total;
+
+	...
+```
+
+## source code
+
+![iotop call graph](iotop_call_graph.png)

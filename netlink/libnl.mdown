@@ -1,0 +1,44 @@
+# libnl
+The libnl suite is a collection of libraries providing APIs to netlink protocol based Linux kernel interfaces.
+
+- libnl-route
+  
+  API to the configuration interfaces of the NETLINK_ROUTE family including network interfaces, routes, addresses, neighbours, and traffic control.
+
+- libnl-genl
+  
+  API to the generic netlink protocol.
+
+- libnl-nf
+
+  API to netlink based netfilter configuration and monitoring interfaces (conntrack, log, queue)
+
+## libnl-route
+### Neighbouring
+### Routin
+### Traffic Control
+The traffic control architecture allows the queueing and prioritization of packets before they are enqueued to the network driver.
+
+#### Queueing Discipline (qdisc)
+```
+------------------     ------------------------------------     --------------------------   -----------------------------
+| Protocol Layer | --> | Network Device Driver Interface/ | --> | Physical Device Driver |-->| Physical Device and Media |
+|                |     |       Queuing Discipline         |     |                        |   |                           |
+------------------     ------------------------------------     --------------------------   -----------------------------
+```
+
+Queuing Schedulers
+
+1. Packet/Bytes FIFO (pfifo/bfifo)
+2. Token Bucket Filter (TBF)
+3. Hierachical Token Bucket (HTB)
+4. Plug/Unplug Traffic (PLUG)
+5. ...
+
+> Remus network buffering requirements:
+>
+> We need to buffer (queue) egress traffic from every vif attached to the guest and release the buffers when the checkpoint associated with them has been committed at the backup host. We achieve this with the help of the plug queuing discipline (sch_plug module). Simply put, Remus' network buffering imposes traffic shaping on the guest's vif(s).
+>
+> Limitations and Workarounds:
+>
+> Egress traffic from a vif appears as ingress traffic to dom0. Linux supports policing (dropping packets) but not traffic shaping (queuing packets) on ingress traffic. The standard workaround to this limitation is to attach an ingress qdisc to the guest vif, redirect all egress traffic from the guest to an intermediate queuing interface, and apply egress rules to it. The IFB (Intermediate Functional Block) device serves the purpose of an intermediate queuing interface.

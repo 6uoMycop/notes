@@ -1,0 +1,1794 @@
+From dotanb at openib.org  Tue Sep 12 05:11:20 2006
+From: dotanb at openib.org (dotanb at openib.org)
+Date: Tue, 12 Sep 2006 05:11:20 -0700 (PDT)
+Subject: [openib-commits] r9436 -
+	trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test
+Message-ID: <20060912121120.13E1A2283D4@openib.ca.sandia.gov>
+
+Author: dotanb
+Date: 2006-09-12 05:11:18 -0700 (Tue, 12 Sep 2006)
+New Revision: 9436
+
+Added:
+   trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/readme.txt
+Modified:
+   trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/Makefile
+   trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/multicast_test.c
+   trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/multicast_test.h
+Log:
+test was updated: now support several QPs
+
+Modified: trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/Makefile
+===================================================================
+--- trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/Makefile	2006-09-12 09:50:04 UTC (rev 9435)
++++ trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/Makefile	2006-09-12 12:11:18 UTC (rev 9436)
+@@ -1,6 +1,5 @@
+ CC = gcc
+-CFLAGS += -g -O2 -Wall -W -Werror
+-#CFLAGS += -Werror -Wswitch-enum -W
++CFLAGS += -g -O2 -Wall -W -Werror -Wswitch-enum 
+ #CFLAGS += -pedantic -ansi
+ LDFLAGS += -libverbs -lvl
+ OBJECTS = multicast_test.o
+@@ -16,5 +15,3 @@
+ 
+ clean:
+ 	rm -f $(OBJECTS) $(TARGETS)
+-
+-
+
+Modified: trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/multicast_test.c
+===================================================================
+--- trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/multicast_test.c	2006-09-12 09:50:04 UTC (rev 9435)
++++ trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/multicast_test.c	2006-09-12 12:11:18 UTC (rev 9436)
+@@ -46,118 +46,122 @@
+ ****************************************************************/
+ 
+ /* structure of test parameters */
+-struct config_t test_conf = {
+-    20000,      /* tcp_port;    */
+-    "0",        /* *ip;         */
+-    "mthca0",   /* *dev_name;   */
+-    PORT_NUM,   /* ib_port;     */
+-    0,          /* is_daemon;   */
+-    0,          /* is_unicast;  */
+-    1,          /* num_senders; */
+-    0,          /* is_srq;      */
+-    50,         /* num_messages;*/
+-    256,        /* message_size;*/
+-    {255,1,0,0,0,0,0,0,0,2,201,0,1,0,208,81}, /* mcast gid*/
+-    0           /* wait_exit; */
++struct config_t config = {
++	20000,      /* tcp_port;    */
++	"0",        /* *ip;         */
++	"mthca0",   /* *dev_name;   */
++	PORT_NUM,   /* ib_port;     */
++	0,          /* is_daemon;   */
++	1,          /* num_senders; */
++	0,          /* is_srq;      */
++	50,         /* num_messages;*/
++	256,        /* message_size;*/
++	{255,1,0,0,0,0,0,0,0,2,201,0,1,0,208,81}, /* mcast gid*/
++	0,          /* wait_exit; */
++	1,	        /* num_of_qp */
++	0           /* server_in_mcast */
+ };
+ 
+ 
+ /* array of the command line parameters */
+ struct VL_usage_descriptor_t usage_descriptor[] = {
+-    {
+-        'h', "help", "",
+-        "Print this message and exit",
+-        #define CMD_CASE_HELP                       0
+-        CMD_CASE_HELP
+-    },
++	{
++		'h', "help", "",
++		"Print this message and exit",
++		#define CMD_CASE_HELP                       0
++		CMD_CASE_HELP
++	},
+ 
+-    {
+-        ' ', "tcp", "TCP_PORT",
+-        "Tcp port (Default: 20000)",
+-        #define CMD_CASE_TCP_PORT                   1
+-        CMD_CASE_TCP_PORT
+-    },
++	{
++		' ', "tcp", "TCP_PORT",
++		"Tcp port (Default: 20000)",
++		#define CMD_CASE_TCP_PORT                   1
++		CMD_CASE_TCP_PORT
++	},
+ 
+-    {
+-        ' ', "ip", "IP_NUMBER",
+-        "Ip number",
+-        #define CMD_CASE_IP                         2
+-        CMD_CASE_IP
+-    },
++	{
++		' ', "ip", "IP_NUMBER",
++		"Ip number",
++		#define CMD_CASE_IP                         2
++		CMD_CASE_IP
++	},
+ 
+-    {
+-        'd', "device", "DEVICE_NAME",
+-        "Device name (Default: \"mthca0\")",
+-        #define CMD_CASE_DEVICE                     3
+-        CMD_CASE_DEVICE
+-    },
++	{
++		'd', "device", "DEVICE_NAME",
++		"Device name (Default: \"mthca0\")",
++		#define CMD_CASE_DEVICE                     3
++		CMD_CASE_DEVICE
++	},
+ 
+-    {
+-        'p', "port", "IB_PORT",
+-        "InfiniBand port number (Default: 1)",
+-        #define CMD_CASE_IB_PORT                    4
+-        CMD_CASE_IB_PORT
+-    },
++	{
++		'p', "port", "IB_PORT",
++		"InfiniBand port number (Default: 1)",
++		#define CMD_CASE_IB_PORT                    4
++		CMD_CASE_IB_PORT
++	},
+ 
+-    {
+-        ' ', "daemon", "",
+-        "Daemon side (Default: False)",
+-        #define CMD_CASE_DAEMON                     5
+-        CMD_CASE_DAEMON
+-    },
++	{
++		' ', "daemon", "",
++		"Daemon side (Default: False)",
++		#define CMD_CASE_DAEMON                     5
++		CMD_CASE_DAEMON
++	},
+ 
+-    {
+-        ' ', "unicast", "",
+-        "Send unicast messages (Default: False [multicast])",
+-        #define CMD_CASE_UNICAST                    6
+-        CMD_CASE_UNICAST
+-    },
++	{
++		' ', "senders", "NUM_SENDERS",
++		"Number of senders/clients (Default: 1)",
++		#define CMD_CASE_NUM_SENDERS                6
++		CMD_CASE_NUM_SENDERS
++	},
+ 
+-    {
+-        ' ', "senders", "NUM_SENDERS",
+-        "Number of senders/clients (Default: 1)",
+-        #define CMD_CASE_NUM_SENDERS                7
+-        CMD_CASE_NUM_SENDERS
+-    },
++	{
++		's', "srq", "",
++		"Use SRQ (Default: False)",
++		#define CMD_CASE_SRQ                        7
++		CMD_CASE_SRQ
++	},
+ 
+-    {
+-        's', "srq", "",
+-        "Use SRQ (Default: False)",
+-        #define CMD_CASE_SRQ                        8
+-        CMD_CASE_SRQ
+-    },
++	{
++		' ', "messages", "MESSAGES",
++		"Number of messages (Default: 50)",
++		#define CMD_CASE_NUM_MESSAGES               8
++		CMD_CASE_NUM_MESSAGES
++	},
+ 
+-    {
+-        ' ', "messages", "MESSAGES",
+-        "Number of messages (Default: 50)",
+-        #define CMD_CASE_NUM_MESSAGES               9
+-        CMD_CASE_NUM_MESSAGES
+-    },
++	{
++		' ', "message_size", "MESSAGE_SIZE",
++		"Message size in bytes (Default: 256)",
++		#define CMD_CASE_MESSAGE_SIZE               9
++		CMD_CASE_MESSAGE_SIZE
++	},
+ 
+-    {
+-        ' ', "message_size", "MESSAGE_SIZE",
+-        "Message size in bytes (Default: 256)",
+-        #define CMD_CASE_MESSAGE_SIZE               10
+-        CMD_CASE_MESSAGE_SIZE
+-    },
++	{
++		'm', "mgid", "MCAST_GID",
++		"Multicast GID",
++		#define CMD_CASE_MCAST_GID                  10
++		CMD_CASE_MCAST_GID
++	},
+ 
++	{
++		'w', "wait_cleanup", "",
++		"Wait before release resources",
++		#define CMD_CASE_WAIT_BEFORE_CLEANUP        11
++		CMD_CASE_WAIT_BEFORE_CLEANUP
++	},
+ 
+-    {
+-        'm', "mgid", "MCAST_GID",
+-        "Multicast GID",
+-        #define CMD_CASE_MCAST_GID                  11
+-        CMD_CASE_MCAST_GID
+-    },
++	{
++		'n', "num_of_qp", "NUM_OF_QP",
++		"Number of QPs to use in the client",
++		#define CMD_CASE_NUM_OF_QP                  12
++		CMD_CASE_NUM_OF_QP
++	},
+ 
+-    {
+-        'w', "wait_cleanup", "WAIT_BEFORE_CLEANUP",
+-        "Wait before release resources",
+-        #define CMD_CASE_WAIT_BEFORE_CLEANUP        12
+-        CMD_CASE_WAIT_BEFORE_CLEANUP
+-    }
+-
+-
+-
++	{
++		' ', "server_in_mcast", "",
++		"Attach server to multicast group before sending packets",
++		#define CMD_CASE_SERVER_IN_MCAST            13
++		CMD_CASE_SERVER_IN_MCAST
++	}
+ };
+ 
+ 
+@@ -166,543 +170,586 @@
+ 
+ int main (int argc, char *argv[])
+ {
+-    int rc;
+-    int test_result             = 1;
+-    int num_of_sockets          = 1;
+-    int mcast_attched           = 0;
+-    int i;
+-    int buf_size;
+-    void *mem_buf               = NULL;
+-    void *grh_buf               = NULL;
+-    struct ibv_context *ctx     = NULL;
+-    struct ibv_pd *pd           = NULL;
+-    struct ibv_mr *mr           = NULL;
+-    struct ibv_mr *grh_mr       = NULL;
+-    struct ibv_cq *rcq          = NULL;
+-    struct ibv_cq *scq          = NULL;
+-    struct ibv_cq *cq           = NULL;
+-    struct ibv_qp *qp           = NULL;
+-    struct ibv_ah *ah           = NULL;
+-    struct ibv_srq *srq         = NULL;
+-    struct VL_sock_t *sock_arr  = NULL;
+-    struct ibv_device_attr  device_attr;
+-    struct ibv_port_attr    port_attr;
+-    struct ibv_qp_init_attr qp_init_attr;
+-    struct ibv_srq_init_attr srq_init_attr;
+-    struct ibv_wc wc;
++	int rc;
++	int test_result             = 1;
++	int num_of_sockets          = 1;
++	int mcast_attched           = 0;
++	int i, j;
++	int buf_size;
++	void *mem_buf               = NULL;
++	void *grh_buf               = NULL;
++	struct ibv_context *ctx     = NULL;
++	struct ibv_pd *pd           = NULL;
++	struct ibv_mr *mr           = NULL;
++	struct ibv_mr *grh_mr       = NULL;
++	struct ibv_cq *rcq          = NULL;
++	struct ibv_cq *scq          = NULL;
++	struct ibv_cq *cq           = NULL;
++	struct ibv_qp **qp_arr      = NULL;
++	struct ibv_ah *ah           = NULL;
++	struct ibv_srq *srq         = NULL;
++	struct VL_sock_t *sock_arr  = NULL;
++	struct ibv_device_attr  device_attr;
++	struct ibv_port_attr    port_attr;
++	struct ibv_qp_init_attr qp_init_attr;
++	struct ibv_srq_init_attr srq_init_attr;
++	struct ibv_wc wc;
++	uint32_t exp_imm_data;
+ 
+-    
+ 
+-    /* read test parameters from command line */
+-    rc = VL_parse_argv(argc, argv, (sizeof(usage_descriptor)/sizeof(struct VL_usage_descriptor_t)),
+-                         usage_descriptor, process_arg);
+-    if (rc)
+-        return rc;
+ 
++	/* read test parameters from command line */
++	rc = VL_parse_argv(argc, argv, (sizeof(usage_descriptor)/sizeof(struct VL_usage_descriptor_t)),
++					   usage_descriptor, process_arg);
++	if (rc)
++		return rc;
+ 
+-    /* Check restrictions between command args */
+-    rc = validate_command_args();
+-    if (rc) 
+-        return rc;
+ 
+-    print_config();
+-    
++	/* Check restrictions between command args */
++	rc = validate_command_args();
++	if (rc) 
++		return rc;
+ 
+-    /* connect clients<->Daemon */
+-    if (test_conf.is_daemon) 
+-        num_of_sockets = test_conf.num_senders;
+-    else
+-        num_of_sockets = 1;
++	/* the daemon always have only 1 QP */
++	if (config.is_daemon) {
++		VL_MISC_TRACE(("Changing the number of QPs in the daemon to 1"));
++		config.num_of_qp = 1;
++	}
+ 
+-    sock_arr = malloc(num_of_sockets*sizeof(struct VL_sock_t));
+-    if (!sock_arr) {
+-        VL_MEM_ERR(("Error, failed to Allocate sockets"));
+-        goto cleanup;
+-    }
++	print_config();
+ 
+-    if (test_conf.is_daemon){
+-        for (i = 1; i <= num_of_sockets; i++) {
+-            VL_MISC_TRACE(("Trying to connect over TCP to client %d", i));
+-            rc = connect_tcp(&sock_arr[i-1]);
+-            if (rc) {               
+-                VL_MISC_ERR(("Error, failed to Connect over TCP to client %d", i));
+-                goto cleanup;        
+-            }
+-        }
+-    }
+-    else{
+-        VL_MISC_TRACE(("Trying to connect over TCP to Daemon"));
+-        rc = connect_tcp(&sock_arr[0]);
+-        if (rc) {               
+-            VL_MISC_ERR(("Error, failed to Connect over TCP to Daemon"));
+-            goto cleanup;        
+-        }
+-    }
+ 
++	/* connect clients<->Daemon */
++	if (config.is_daemon) 
++		num_of_sockets = config.num_senders;
++	else
++		num_of_sockets = 1;
+ 
+-    /* Get IB device */
+-    rc = get_ib_dev(&ctx);
+-    if (rc) 
+-        goto cleanup;
++	sock_arr = malloc(num_of_sockets*sizeof(struct VL_sock_t));
++	if (!sock_arr) {
++		VL_MEM_ERR(("Error, failed to Allocate sockets"));
++		goto cleanup;
++	}
+ 
++	if (config.is_daemon){
++		for (i = 1; i <= num_of_sockets; i++) {
++			VL_MISC_TRACE(("Trying to connect over TCP to client %d", i));
++			rc = connect_tcp(&sock_arr[i-1]);
++			if (rc) {
++				VL_MISC_ERR(("Error, failed to Connect over TCP to client %d", i));
++				goto cleanup;
++			}
++		}
++	} else{
++		VL_MISC_TRACE(("Trying to connect over TCP to Daemon"));
++		rc = connect_tcp(&sock_arr[0]);
++		if (rc) {
++			VL_MISC_ERR(("Error, failed to Connect over TCP to Daemon"));
++			goto cleanup;
++		}
++	}
+ 
+-    /* Get device attributes */
+-    rc = ibv_query_device(ctx, &device_attr);
+-    if (rc) {
+-        VL_HCA_ERR(("Error, failed to query device props"));
+-        goto cleanup;
+-    }
+-    VL_HCA_TRACE(("Device %s was opened: device id is %d", test_conf.dev_name, device_attr.vendor_part_id));
+ 
++	/* Get IB device */
++	rc = get_ib_dev(&ctx);
++	if (rc)
++		goto cleanup;
+ 
+-    /* Get port attributes */
+-    rc = ibv_query_port(ctx, test_conf.ib_port, &port_attr);
+-    if (rc) {
+-        VL_HCA_ERR(("Error, failed to query port %u props", test_conf.ib_port));
+-        goto cleanup;
+-    }
+-    VL_HCA_TRACE(("Port %d was queried, port LID is 0x%x", test_conf.ib_port, port_attr.lid));
+ 
++	/* Get device attributes */
++	rc = ibv_query_device(ctx, &device_attr);
++	if (rc) {
++		VL_HCA_ERR(("Error, failed to query device props"));
++		goto cleanup;
++	}
++	VL_HCA_TRACE(("Device %s was opened: device id is %d", config.dev_name, device_attr.vendor_part_id));
+ 
+-    /* Check that the port logical link is up */
+-    if (port_attr.state != IBV_PORT_ACTIVE) {
+-        VL_HCA_ERR(("Error, port %u is in state %s", test_conf.ib_port, VL_ibv_port_state_str(port_attr.state)));
+-        goto cleanup;
+-    }
+ 
++	/* Get port attributes */
++	rc = ibv_query_port(ctx, config.ib_port, &port_attr);
++	if (rc) {
++		VL_HCA_ERR(("Error, failed to query port %u props", config.ib_port));
++		goto cleanup;
++	}
++	VL_HCA_TRACE(("Port %d was queried, port LID is 0x%x", config.ib_port, port_attr.lid));
+ 
+-    /* Allocate protection domain */
+-    pd = ibv_alloc_pd(ctx);
+-    if (!pd) {
+-        VL_DATA_ERR(("Error, failed to allocate PD"));
+-        goto cleanup;
+-    }
+-    VL_DATA_TRACE(("PD was allocated"));
+ 
++	/* Check that the port logical link is up */
++	if (port_attr.state != IBV_PORT_ACTIVE) {
++		VL_HCA_ERR(("Error, port %u is in state %s", config.ib_port, VL_ibv_port_state_str(port_attr.state)));
++		goto cleanup;
++	}
+ 
+-    /* Allocate memory buffer */
+-    buf_size = test_conf.message_size * test_conf.num_messages;
+-    mem_buf = malloc(buf_size);
+-    if (!mem_buf) {
+-        VL_MEM_ERR(("Error, failed to allocate memory buffer with %u bytes", buf_size));
+-        goto cleanup;
+-    }
+ 
+-    /* Allocate GRH buffer */
+-    grh_buf = malloc(GRH_SIZE);
+-    if (!grh_buf) {
+-        VL_MEM_ERR(("Error, failed to allocate GRH buffer with %u bytes", GRH_SIZE));
+-        goto cleanup;
+-    }
++	/* Allocate protection domain */
++	pd = ibv_alloc_pd(ctx);
++	if (!pd) {
++		VL_DATA_ERR(("Error, failed to allocate PD"));
++		goto cleanup;
++	}
++	VL_DATA_TRACE(("PD was allocated"));
+ 
+ 
+-    /* Daemon - Fill data on buffer, Client - Clear buffer*/
+-    if (test_conf.is_daemon) 
+-        fill_buff((uint8_t*)mem_buf,buf_size,DATA_STEP);
+-    else
+-        memset(mem_buf,0,buf_size);
+- 
++	/* Allocate memory buffer */
++	buf_size = config.message_size * config.num_messages * config.num_of_qp;
++	mem_buf = malloc(buf_size);
++	if (!mem_buf) {
++		VL_MEM_ERR(("Error, failed to allocate memory buffer with %u bytes", buf_size));
++		goto cleanup;
++	}
+ 
+-    /* Memory registration */
+-    mr = ibv_reg_mr(pd, mem_buf, buf_size, IBV_ACCESS_LOCAL_WRITE);
+-    if (!mr) {
+-        VL_MEM_ERR(("Error, failed to register MR"));
+-        goto cleanup;
+-    }
+-    VL_MEM_TRACE(("MR was registered, buf=%p, size=%u, lkey=0x%x", mem_buf, buf_size,
+-                  mr->lkey));
++	/* Allocate GRH buffer */
++	grh_buf = malloc(GRH_SIZE);
++	if (!grh_buf) {
++		VL_MEM_ERR(("Error, failed to allocate GRH buffer with %u bytes", GRH_SIZE));
++		goto cleanup;
++	}
+ 
+-    /* GRH buff registration */
+-    grh_mr = ibv_reg_mr(pd, grh_buf, GRH_SIZE, IBV_ACCESS_LOCAL_WRITE);
+-    if (!grh_mr) {
+-        VL_MEM_ERR(("Error, failed to register MR"));
+-        goto cleanup;
+-    }
+-    VL_MEM_TRACE(("GRH_MR was registered, buf=%p, size=%u, lkey=0x%x", grh_buf, GRH_SIZE,
+-                  grh_mr->lkey));
+ 
++	/* Daemon - Fill data on buffer, Client - Clear buffer*/
++	if (config.is_daemon) 
++		fill_buff((uint8_t*)mem_buf,buf_size,DATA_STEP);
++	else
++		memset(mem_buf,0,buf_size);
+ 
+-    /* Create Receive CQ */
+-    rcq = ibv_create_cq(ctx, test_conf.num_messages, NULL, NULL, 0);
+-    if (!rcq) {
+-        VL_DATA_ERR(("Error, failed to create receive CQ"));
+-        goto cleanup;
+-    }
+-    VL_DATA_TRACE(("Receive CQ was created with %u entries", rcq->cqe));
+ 
++	/* Memory registration */
++	mr = ibv_reg_mr(pd, mem_buf, buf_size, IBV_ACCESS_LOCAL_WRITE);
++	if (!mr) {
++		VL_MEM_ERR(("Error, failed to register MR"));
++		goto cleanup;
++	}
++	VL_MEM_TRACE(("MR was registered, buf=%p, size=%u, lkey=0x%x", mem_buf, buf_size,
++				  mr->lkey));
+ 
+-    /* Create Send CQ */
+-    scq = ibv_create_cq(ctx, test_conf.num_messages, NULL, NULL, 0);
+-    if (!scq) {
+-        VL_DATA_ERR(("Error, failed to create send CQ"));
+-        goto cleanup;
+-    }
+-    VL_DATA_TRACE(("Send CQ was created with %u entries", scq->cqe));
++	/* GRH buff registration */
++	grh_mr = ibv_reg_mr(pd, grh_buf, GRH_SIZE, IBV_ACCESS_LOCAL_WRITE);
++	if (!grh_mr) {
++		VL_MEM_ERR(("Error, failed to register MR"));
++		goto cleanup;
++	}
++	VL_MEM_TRACE(("GRH_MR was registered, buf=%p, size=%u, lkey=0x%x", grh_buf, GRH_SIZE,
++				  grh_mr->lkey));
+ 
+ 
+-    /* Create SRQ */
+-    if (test_conf.is_srq) {
++	/* Create Receive CQ */
++	rcq = ibv_create_cq(ctx, config.num_messages * config.num_of_qp, NULL, NULL, 0);
++	if (!rcq) {
++		VL_DATA_ERR(("Error, failed to create receive CQ"));
++		goto cleanup;
++	}
++	VL_DATA_TRACE(("Receive CQ was created with %u entries", rcq->cqe));
+ 
+-        memset(&srq_init_attr,0,sizeof(srq_init_attr));
+ 
+-        srq_init_attr.srq_context = NULL;
+-        srq_init_attr.attr.max_wr = test_conf.num_messages;
+-        srq_init_attr.attr.max_sge = QP_CAP_SG,
++	/* Create Send CQ */
++	scq = ibv_create_cq(ctx, config.num_messages, NULL, NULL, 0);
++	if (!scq) {
++		VL_DATA_ERR(("Error, failed to create send CQ"));
++		goto cleanup;
++	}
++	VL_DATA_TRACE(("Send CQ was created with %u entries", scq->cqe));
+ 
+-        srq = ibv_create_srq(pd,&srq_init_attr);
+-        if (!srq) {
+-            VL_DATA_ERR(("Error, failed to create SRQ"));
+-            goto cleanup;
+-        }
+-        VL_DATA_TRACE(("SRQ was created with max_wr=%u, max_sge=%u",
+-                       srq_init_attr.attr.max_wr, srq_init_attr.attr.max_sge));
+-    }
+ 
+-    /* Init QP attributes */
+-    memset((void*)&qp_init_attr,0,sizeof(struct ibv_qp_init_attr));
++	/* Create SRQ */
++	if (config.is_srq) {
+ 
+-    qp_init_attr.qp_type            = IBV_QPT_UD;
+-    qp_init_attr.recv_cq            = rcq;
+-    qp_init_attr.send_cq            = scq;
+-    qp_init_attr.srq                = srq;
+-    qp_init_attr.sq_sig_all         = 0;
+-    qp_init_attr.cap.max_send_wr    = (test_conf.is_daemon) ? test_conf.num_messages : 0;
+-    qp_init_attr.cap.max_recv_wr    = (!test_conf.is_daemon) ? test_conf.num_messages : 0;
+-    qp_init_attr.cap.max_send_sge   = QP_CAP_SG;
+-    qp_init_attr.cap.max_recv_sge   = QP_CAP_SG;
+-    
+-    qp = ibv_create_qp(pd, &qp_init_attr);
+-    if (!qp) {
+-        VL_DATA_ERR(("Error, failed to create QP"));
+-        goto cleanup;
+-    }
+-    VL_DATA_TRACE(("QP with number 0x%x was created, max_send_sge=%u, max_recv_sge=%u", 
+-                   qp->qp_num, qp_init_attr.cap.max_send_sge, 
+-                   qp_init_attr.cap.max_recv_sge));
++		memset(&srq_init_attr,0,sizeof(srq_init_attr));
+ 
++		srq_init_attr.srq_context = NULL;
++		srq_init_attr.attr.max_wr = config.num_messages * config.num_of_qp;
++		srq_init_attr.attr.max_sge = QP_CAP_SG;
+ 
+-    /* Modify QP  */
+-    {
+-        /* move QP to init state */
+-        struct ibv_qp_attr attr = {
++		srq = ibv_create_srq(pd,&srq_init_attr);
++		if (!srq) {
++			VL_DATA_ERR(("Error, failed to create SRQ"));
++			goto cleanup;
++		}
++		VL_DATA_TRACE(("SRQ was created with max_wr=%u, max_sge=%u",
++					   srq_init_attr.attr.max_wr, srq_init_attr.attr.max_sge));
++	}
+ 
+-            .qp_state        = IBV_QPS_INIT,
+-            .pkey_index      = DEF_PKEY_IDX,
+-            .port_num        = test_conf.ib_port,
+-            .qkey            = DEF_QKEY
+-        };
++	qp_arr = malloc(sizeof(struct ibv_qp *) * config.num_of_qp);
++	if (!qp_arr) {
++		VL_MEM_ERR(("Error, failed to Allocate memory for QPs array"));
++		goto cleanup;
++	}
+ 
+-        if (ibv_modify_qp(qp, &attr,
+-                          IBV_QP_STATE              |
+-                          IBV_QP_PKEY_INDEX         |
+-                          IBV_QP_PORT               |
+-                          IBV_QP_QKEY)) {
+-                VL_DATA_ERR(("Failed to modify QP to INIT"));
+-                goto cleanup;
+-        }
++	for (i = 0; i < config.num_of_qp; i ++)
++		qp_arr[i] = NULL;
+ 
+-        /* move QP to RTR state */
+-        attr.qp_state           = IBV_QPS_RTR;
+-        
+-        if (ibv_modify_qp(qp, &attr, IBV_QP_STATE)) {
+-                VL_DATA_ERR(("Failed to modify QP to RTR"));
+-                goto cleanup;
+-        }
++	
++	/* Init QP attributes */
++	memset((void*)&qp_init_attr,0,sizeof(struct ibv_qp_init_attr));
+ 
+-        /* move QP to RTS state */
+-        attr.qp_state       = IBV_QPS_RTS;
+-        attr.sq_psn         = DEF_PSN;
+-        
+-        if (ibv_modify_qp(qp, &attr,
+-                          IBV_QP_STATE              |
+-                          IBV_QP_SQ_PSN)) {
+-                VL_DATA_ERR(("Failed to modify QP to RTS"));
+-                goto cleanup;
+-        }
+-    }
++	qp_init_attr.qp_type            = IBV_QPT_UD;
++	qp_init_attr.recv_cq            = rcq;
++	qp_init_attr.send_cq            = scq;
++	qp_init_attr.srq                = srq;
++	qp_init_attr.sq_sig_all         = 0;
++	qp_init_attr.cap.max_send_wr    = (config.is_daemon) ? config.num_messages * config.num_of_qp : 0;
++	qp_init_attr.cap.max_recv_wr    = (!config.is_daemon) ? config.num_messages * config.num_of_qp : 0;
++	qp_init_attr.cap.max_send_sge   = QP_CAP_SG;
++	qp_init_attr.cap.max_recv_sge   = QP_CAP_SG;
+ 
++	for (i = 0; i < config.num_of_qp; i ++) {
++		qp_arr[i] = ibv_create_qp(pd, &qp_init_attr);
++		if (!qp_arr[i]) {
++			VL_DATA_ERR(("Error, failed to create QP[%d]", i));
++			goto cleanup;
++		}
++		VL_DATA_TRACE(("QP[%d] with number 0x%x was created, max_send_sge=%u, max_recv_sge=%u", 
++					   i, qp_arr[i]->qp_num, qp_init_attr.cap.max_send_sge,
++					   qp_init_attr.cap.max_recv_sge));
++	}
+ 
+-    /* Attach multicast */
+-    {
+-       union ibv_gid gid;
++	/* Modify QPs to RTR/RTS */
++	for (i = 0; i < config.num_of_qp; i ++) {
+ 
++		/* move QP to init state */
++		struct ibv_qp_attr attr = {
++			.qp_state        = IBV_QPS_INIT,
++			.pkey_index      = DEF_PKEY_IDX,
++			.port_num        = config.ib_port,
++			.qkey            = DEF_QKEY
++		};
+ 
+-       memcpy(gid.raw, test_conf.mcast_gid, sizeof(gid.raw)); 
+-       rc = ibv_attach_mcast(qp, &gid, MULTICAST_LID); 
+-       if (rc) {
+-           VL_DATA_ERR(("Failed to Attach QP to multicast group"));
+-            goto cleanup;
+-       }
++		if (ibv_modify_qp(qp_arr[i], &attr,
++						  IBV_QP_STATE              |
++						  IBV_QP_PKEY_INDEX         |
++						  IBV_QP_PORT               |
++						  IBV_QP_QKEY)) {
++			VL_DATA_ERR(("Failed to modify QP[%d] to INIT", i));
++			goto cleanup;
++		}
+ 
+-       mcast_attched = 1;
+-    }
+-    VL_DATA_TRACE(("QP was Attached to multicast group"));
++		/* move QP to RTR state */
++		attr.qp_state           = IBV_QPS_RTR;
+ 
++		if (ibv_modify_qp(qp_arr[i], &attr, IBV_QP_STATE)) {
++			VL_DATA_ERR(("Failed to modify QP[%d] to RTR", i));
++				goto cleanup;
++		}
+ 
+-    /* Create AV */
+-    {
+-        struct ibv_ah_attr ah_attr = {
+-              .is_global     = 1,
+-              .grh = {
+-                  .sgid_index = 0
+-              },
+-              .dlid          = (test_conf.is_unicast)? port_attr.lid : MULTICAST_LID ,  
+-              .sl            = DEF_SL,  
+-              .src_path_bits = DEF_SRC_PATH_BITS,
+-              .port_num      = test_conf.ib_port
+-            };
++		/* move daemon QP to RTS state */
++		if (config.is_daemon) {
++			attr.qp_state       = IBV_QPS_RTS;
++			attr.sq_psn         = DEF_PSN;
+ 
+-        /* copy the multicast group gid */
+-        memcpy(ah_attr.grh.dgid.raw, test_conf.mcast_gid, sizeof(ah_attr.grh.dgid.raw));
++			if (ibv_modify_qp(qp_arr[i], &attr,
++							  IBV_QP_STATE |
++							  IBV_QP_SQ_PSN)) {
++				VL_DATA_ERR(("Failed to modify QP[%d] to RTS", i));
++				goto cleanup;
++			}
++		}
++	}
+ 
+-        ah = ibv_create_ah(pd, &ah_attr);
+-        if (!ah) {
+-            VL_DATA_ERR(("Failed to create AH"));
+-            goto cleanup;
+-        }
++	if ((!config.is_daemon) || (config.server_in_mcast)) {
++		/* attach multicast */
++		for (i = 0; i < config.num_of_qp; i ++) {
++			union ibv_gid gid;
+ 
+-        VL_DATA_TRACE(("AV dlid = 0x%x", ah_attr.dlid));
+-    }
++			memcpy(gid.raw, config.mcast_gid, sizeof(gid.raw)); 
++			rc = ibv_attach_mcast(qp_arr[i], &gid, MULTICAST_LID); 
++			if (rc) {
++				VL_DATA_ERR(("Failed to Attach QP[%d] to multicast group", i));
++				goto cleanup;
++			}
+ 
++			mcast_attched = 1;
++		}
++		VL_DATA_TRACE(("QP was Attached to multicast group"));
++	}
+ 
+-    /* Client Post RR */
+-    if (!test_conf.is_daemon) {
+ 
+-        for (i = 1; i <= test_conf.num_messages; ++i)
+-        {
+-            struct ibv_recv_wr wr;
+-            struct ibv_recv_wr *bad_wr;     
+-            struct ibv_sge  sg_list[2];
++	/* Create AV */
++	{
++		struct ibv_ah_attr ah_attr = {
++			.is_global     = 1,
++			.grh = {
++				  .sgid_index = 0
++			  },
++			  .dlid          = MULTICAST_LID,
++			  .sl            = DEF_SL,
++			  .src_path_bits = DEF_SRC_PATH_BITS,
++			  .port_num      = config.ib_port
++		};
+ 
+-            sg_list[0].addr = (uintptr_t)grh_buf;
+-            sg_list[0].length = GRH_SIZE; 
+-            sg_list[0].lkey = grh_mr->lkey;
++		/* copy the multicast group gid */
++		memcpy(ah_attr.grh.dgid.raw, config.mcast_gid, sizeof(ah_attr.grh.dgid.raw));
+ 
+-            sg_list[1].addr = (uintptr_t)(mem_buf + ((i-1)*test_conf.message_size));
+-            sg_list[1].length = test_conf.message_size; 
+-            sg_list[1].lkey = mr->lkey;
++		ah = ibv_create_ah(pd, &ah_attr);
++		if (!ah) {
++			VL_DATA_ERR(("Failed to create AH"));
++			goto cleanup;
++		}
+ 
+-            wr.next = NULL;
+-            wr.wr_id = 0;
+-            wr.sg_list = &sg_list[0];
+-            wr.num_sge = 2;
++		VL_DATA_TRACE(("AV dlid = 0x%x", ah_attr.dlid));
++	}
+ 
+-            /* post Receive request */
+-            if (test_conf.is_srq)
+-                rc = ibv_post_srq_recv(srq, &wr,&bad_wr);
+-            else            
+-                rc = ibv_post_recv(qp, &wr, &bad_wr);
+ 
+-            if (rc) {
+-                VL_DATA_ERR(("Error, failed to post RR num %d", i));
+-                goto cleanup;
+-            }
+-            VL_DATA_TRACE(("RR num %d was posted", i));
+-        }
+-    }
++	/* Client Post RR */
++	if (!config.is_daemon) {
++		int offset = 0;
+ 
+-    /* sync with daemon */             
+-    if (test_conf.is_daemon){
+-        for (i = 1; i <= num_of_sockets; i++) {
+-            VL_MISC_TRACE(("Sync with client %d", i));
+-            rc = VL_sock_sync_ready(&sock_arr[i-1]);
+-            if (rc) {               
+-                VL_MISC_ERR(("Error, failed to sync with client %d", i));
+-                goto cleanup;        
+-            }
+-        }
+-    }
+-    else{
+-        VL_MISC_TRACE(("Sync with Daemon"));
+-        rc = VL_sock_sync_ready(&sock_arr[0]);
+-        if (rc) {               
+-            VL_MISC_ERR(("Error, failed to sync with Daemon"));
+-            goto cleanup;        
+-        }
+-    }
++		for (i = 1; i <= config.num_messages; ++i)
++			for (j = 0; j <  config.num_of_qp; j ++) {
++				struct ibv_recv_wr wr;
++				struct ibv_recv_wr *bad_wr;
++				struct ibv_sge  sg_list[2];
+ 
+-    /* Daemon Post SR */
+-    if (test_conf.is_daemon) {
++				sg_list[0].addr = (uintptr_t)grh_buf;
++				sg_list[0].length = GRH_SIZE; 
++				sg_list[0].lkey = grh_mr->lkey;
+ 
+-        for (i = 1; i <= test_conf.num_messages; ++i) {
+-            struct ibv_send_wr wr;
+-            struct ibv_send_wr *bad_wr;
+-            struct ibv_sge	sg;
+-        
+-            sg.addr = (uintptr_t)(mem_buf + (i-1)*test_conf.message_size);
+-            sg.length = test_conf.message_size;
+-            sg.lkey = mr->lkey;
+-        
++				sg_list[1].addr = (uintptr_t)(mem_buf + offset * config.message_size);
++				sg_list[1].length = config.message_size; 
++				sg_list[1].lkey = mr->lkey;
+ 
+-            wr.next = NULL;
+-            wr.wr_id = i;
+-            wr.sg_list = &sg;
+-            wr.num_sge = 1;
+-            wr.opcode = IBV_WR_SEND;
+-            wr.send_flags = IBV_SEND_SIGNALED;
++				wr.next = NULL;
++				wr.wr_id = 0;
++				wr.sg_list = &sg_list[0];
++				wr.num_sge = 2;
+ 
+-            wr.wr.ud.ah = ah;
+-            wr.wr.ud.remote_qpn = MULTICAST_QPN;
+-            wr.wr.ud.remote_qkey = DEF_QKEY;
++				/* post Receive request */
++				if (config.is_srq)
++					rc = ibv_post_srq_recv(srq, &wr,&bad_wr);
++				else
++					rc = ibv_post_recv(qp_arr[j], &wr, &bad_wr);
+ 
+-            rc = ibv_post_send(qp, &wr, &bad_wr);
+-            if (rc) {
+-                VL_DATA_ERR(("Error, failed to post SR num %d", i));
+-                goto cleanup;
+-            }
+-            VL_DATA_TRACE(("SR num %d was posted", i));
+-        }
++				if (rc) {
++					VL_DATA_ERR(("Error, failed to post RR num %d", i));
++					goto cleanup;
++				}
++				VL_DATA_TRACE1(("RR num %d was posted to QP[%d]", i, j));
++				offset ++;
++			}
+ 
+-    }
++		VL_DATA_TRACE(("%d RRs were posted", config.num_messages * config.num_of_qp));
++	}
+ 
++	/* sync with daemon */
++	if (config.is_daemon){
++		for (i = 1; i <= num_of_sockets; i++) {
++			VL_MISC_TRACE(("Sync with client %d", i));
++			rc = VL_sock_sync_ready(&sock_arr[i-1]);
++			if (rc) {
++				VL_MISC_ERR(("Error, failed to sync with client %d", i));
++				goto cleanup;
++			}
++		}
++	}
++	else{
++		VL_MISC_TRACE(("Sync with Daemon"));
++		rc = VL_sock_sync_ready(&sock_arr[0]);
++		if (rc) {
++			VL_MISC_ERR(("Error, failed to sync with Daemon"));
++			goto cleanup;
++		}
++	}
+ 
+-    /* waiting for completion */ 
+-    VL_DATA_TRACE(("waiting for completion"));
+-    cq = (test_conf.is_daemon) ? scq : rcq;
++	/* Daemon Post SR */
++	if (config.is_daemon) {
+ 
+-    for (i = 0; i < test_conf.num_messages; ++i) {
+-        do {
+-            rc = ibv_poll_cq(cq, NUM_OF_COMPLETIONS, &wc);
+-        } while (!rc);
++		for (i = 1; i <= config.num_messages; ++i) {
++			struct ibv_send_wr wr;
++			struct ibv_send_wr *bad_wr;
++			struct ibv_sge	sg;
+ 
+-        if (rc < 0) {
+-            VL_DATA_ERR(("Error, failed to poll CQ for completion[%u]", i));
+-            goto cleanup;
+-        }
++			sg.addr = (uintptr_t)(mem_buf + (i-1)*config.message_size);
++			sg.length = config.message_size;
++			sg.lkey = mr->lkey;
+ 
+-        VL_DATA_TRACE(("completion[%u] was found", i));
+-        
+-        if (wc.status != IBV_WC_SUCCESS) {
+-            VL_DATA_ERR(("Error, got bad completion, status = %s", VL_ibv_wc_status_str(wc.status)));
+-            goto cleanup;
+-        }
+-    }
+ 
++			wr.next = NULL;
++			wr.wr_id = i;
++			wr.sg_list = &sg;
++			wr.num_sge = 1;
++			wr.opcode = IBV_WR_SEND_WITH_IMM;
++			wr.send_flags = IBV_SEND_SIGNALED;
++			wr.imm_data = htonl(i);
+ 
+-    if (!test_conf.is_daemon) {
+-        rc = check_data((uint8_t*)mem_buf,buf_size,DATA_STEP);
+-        if (rc) {
+-            VL_DATA_ERR(("Check received data failed"));
+-            goto cleanup;
+-        }
+-        VL_DATA_TRACE(("check received data Passed"));
+-    }
++			wr.wr.ud.ah = ah;
++			wr.wr.ud.remote_qpn = MULTICAST_QPN;
++			wr.wr.ud.remote_qkey = DEF_QKEY;
+ 
+-    test_result = 0;
++			/* in the daemon, only the first QP is valid */
++			rc = ibv_post_send(qp_arr[0], &wr, &bad_wr);
++			if (rc) {
++				VL_DATA_ERR(("Error, failed to post SR num %d", i));
++				goto cleanup;
++			}
++			VL_DATA_TRACE1(("SR num %d was posted", i));
++		}
++		VL_DATA_TRACE(("%u SR were posted to multicast group", config.num_messages));
++	}
+ 
++
++	/* waiting for completion */ 
++	VL_DATA_TRACE(("waiting for completion"));
++	cq = (config.is_daemon) ? scq : rcq;
++
++	exp_imm_data = 1;
++	for (i = 0; i < config.num_messages * config.num_of_qp; ++i) {
++		do {
++			rc = ibv_poll_cq(cq, NUM_OF_COMPLETIONS, &wc);
++		} while (!rc);
++
++		if (rc < 0) {
++			VL_DATA_ERR(("Error, failed to poll CQ for completion[%u]", i));
++			goto cleanup;
++		}
++
++	if (config.is_daemon) {
++		VL_DATA_TRACE1(("completion[%u] was found", i));
++	} else {
++		VL_DATA_TRACE1(("completion[%u] was found: imm_data = 0x%x", i, ntohl(wc.imm_data)));
++	}
++
++	if (wc.status != IBV_WC_SUCCESS) {
++			VL_DATA_ERR(("Error, got bad completion, status = %s", VL_ibv_wc_status_str(wc.status)));
++			goto cleanup;
++		}
++		/* only if one QP being used check the Immediate data */
++		if ((config.num_of_qp == 1) && (wc.status == IBV_WC_RECV)) {
++			if (exp_imm_data != wc.imm_data) {
++				VL_DATA_ERR(("Error, packets were received out of order(?): expected imm_data: 0x%x, actual: 0x%x",
++							 exp_imm_data, wc.imm_data));
++				goto cleanup;
++			}
++			exp_imm_data ++;
++		}
++	}
++	VL_DATA_TRACE(("%u completions were polled", config.num_messages * config.num_of_qp));
++
++
++	if (!config.is_daemon) {
++		rc = check_data((uint8_t*)mem_buf, buf_size, DATA_STEP);
++		if (rc) {
++			VL_DATA_ERR(("Check received data failed"));
++			goto cleanup;
++		}
++		VL_DATA_TRACE(("check received data Passed"));
++	}
++
++	test_result = 0;
++
+ /* TODO: update necessary objects */
+ cleanup:
+ 
+ 
+-    if (test_conf.wait_cleanup) {
+-        VL_MISC_TRACE(("Wait_cleanup is UP - Press Enter to continue."));
+-        VL_keypress_wait();
+-    }
++	if (config.wait_cleanup)
++		VL_keypress_wait();
+ 
+-    /* Detach multicast */
+-    if (mcast_attched) {
++	/* Detach multicast */
++	if (mcast_attched) {
++		for (i = 0; i < config.num_of_qp; i++) {
++			union ibv_gid gid;
+ 
+-       union ibv_gid gid;
+-       memset(&gid,0,sizeof(union ibv_gid));
++			memset(&gid,0,sizeof(union ibv_gid));
+ 
+-       memcpy(gid.raw,test_conf.mcast_gid, sizeof(gid.raw));
+-       rc = ibv_detach_mcast(qp, &gid, MULTICAST_LID);  
+-       if (rc) {
+-           VL_DATA_ERR(("Failed to Detach QP from multicast group"));
+-           test_result = 1;
+-       }
+-    }
+-  
+-    if (qp) {
+-        rc = ibv_destroy_qp(qp);
+-        if (rc) {
+-            VL_DATA_ERR(("Error, failed to destroy QP"));
+-            test_result = 1;
+-        }
+-    }
++			memcpy(gid.raw,config.mcast_gid, sizeof(gid.raw));
++			rc = ibv_detach_mcast(qp_arr[i], &gid, MULTICAST_LID);
++			if (rc) {
++				VL_DATA_ERR(("Failed to Detach QP[%d] from multicast group", i));
++				test_result = 1;
++			}
++		}
++	}
+ 
++	if (qp_arr) {
++		for (i = 0; i < config.num_of_qp; i++)
++			if (qp_arr[i]) {
++				rc = ibv_destroy_qp(qp_arr[i]);
++				if (rc) {
++					VL_DATA_ERR(("Error, failed to destroy QP[%d]", i));
++					test_result = 1;
++				}
++			}
+ 
+-    if (srq) {
+-        rc = ibv_destroy_srq(srq);
+-        if (rc) {
+-            VL_DATA_ERR(("Error, failed to destroy SRQ"));
+-            test_result = 1;
+-        }
+-    }
++		free(qp_arr);
++	}
+ 
++	if (srq) {
++		rc = ibv_destroy_srq(srq);
++		if (rc) {
++			VL_DATA_ERR(("Error, failed to destroy SRQ"));
++			test_result = 1;
++		}
++	}
+ 
+-    if (scq) {
+-        rc = ibv_destroy_cq(scq);
+-        if (rc) {
+-            VL_DATA_ERR(("Error, failed to destroy send CQ"));
+-            test_result = 1;
+-        }
+-    }
++	if (scq) {
++		rc = ibv_destroy_cq(scq);
++		if (rc) {
++			VL_DATA_ERR(("Error, failed to destroy send CQ"));
++			test_result = 1;
++		}
++	}
+ 
+-    if (rcq) {
+-        rc = ibv_destroy_cq(rcq);
+-        if (rc) {
+-            VL_DATA_ERR(("Error, failed to destroy receive CQ"));
+-            test_result = 1;
+-        }
+-    }
++	if (rcq) {
++		rc = ibv_destroy_cq(rcq);
++		if (rc) {
++			VL_DATA_ERR(("Error, failed to destroy receive CQ"));
++			test_result = 1;
++		}
++	}
+ 
+-    if (mr) {
+-        rc = ibv_dereg_mr(mr);
+-        if (rc) {
+-            VL_MEM_ERR(("Error, failed to deregister MR"));
+-            test_result = 1;
+-        }
+-    }
++	if (mr) {
++		rc = ibv_dereg_mr(mr);
++		if (rc) {
++			VL_MEM_ERR(("Error, failed to deregister MR"));
++			test_result = 1;
++		}
++	}
+ 
+-    if (grh_mr) {
+-        rc = ibv_dereg_mr(grh_mr);
+-        if (rc) {
+-            VL_MEM_ERR(("Error, failed to deregister MR"));
+-            test_result = 1;
+-        }
+-    }
++	if (grh_mr) {
++		rc = ibv_dereg_mr(grh_mr);
++		if (rc) {
++			VL_MEM_ERR(("Error, failed to deregister MR"));
++			test_result = 1;
++		}
++	}
+ 
+-    if (mem_buf)
+-        free(mem_buf);
++	if (mem_buf)
++		free(mem_buf);
+ 
+-    if (grh_buf)
+-        free(grh_buf);
++	if (grh_buf)
++		free(grh_buf);
+ 
+-    if (ah) {
+-        rc = ibv_destroy_ah(ah);
++	if (ah) {
++		rc = ibv_destroy_ah(ah);
+ 
+-        if (rc) {
+-            VL_HCA_ERR(("Failed to destroy AH"));
+-            test_result = 1;
+-        }
+-    }
++		if (rc) {
++			VL_HCA_ERR(("Failed to destroy AH"));
++			test_result = 1;
++		}
++	}
+ 
+-    if (pd) {
+-        rc = ibv_dealloc_pd(pd);
+-        if (rc) {
+-            VL_DATA_ERR(("Error, failed to deallocate PD"));
+-            test_result = 1;
+-        }
+-    }
+- 
+-    if (ctx) {
+-        rc = ibv_close_device(ctx);
+-        if (rc) {
+-            VL_HCA_ERR(("Error, failed to close device"));
+-            test_result = 1;
+-        }
+-    }
++	if (pd) {
++		rc = ibv_dealloc_pd(pd);
++		if (rc) {
++			VL_DATA_ERR(("Error, failed to deallocate PD"));
++			test_result = 1;
++		}
++	}
+ 
+-    if(sock_arr){
+-        for (i=0;i<num_of_sockets;i++) {
+-           VL_sock_close(&sock_arr[i]);
+-        }
+-    }
++	if (ctx) {
++		rc = ibv_close_device(ctx);
++		if (rc) {
++			VL_HCA_ERR(("Error, failed to close device"));
++			test_result = 1;
++		}
++	}
+ 
+-    VL_print_test_status(test_result);
+-    return test_result;
++	if(sock_arr){
++		for (i=0;i<num_of_sockets;i++) {
++			VL_sock_close(&sock_arr[i]);
++		}
++	}
+ 
++	VL_print_test_status(test_result);
++	return test_result;
++
+ } /* end of Main */
+ 
+ 
+@@ -712,77 +759,81 @@
+ 
+ /**************************************************
+ * Parse command line and fill the relevant fields
+-* on the test_conf struct.
++* on the config struct.
+ * return code: 0 - success, other - failure
+ **************************************************/
+ int process_arg(
+-    IN              const int opt_index,
+-    IN              const char* equ_ptr,
+-    IN              const int arr_size,
+-    IN              const struct VL_usage_descriptor_t* usage_desc_arr)
++	IN              const int opt_index,
++	IN              const char* equ_ptr,
++	IN              const int arr_size,
++	IN              const struct VL_usage_descriptor_t* usage_desc_arr)
+ {
+-    int rc = 0;
++	int rc = 0;
+ 
+-    /* process argument */
+-    switch (usage_descriptor[opt_index].case_code) {
+-    case CMD_CASE_HELP:
+-        VL_usage(1, arr_size, usage_desc_arr);
+-        return 1;
++	/* process argument */
++	switch (usage_descriptor[opt_index].case_code) {
++	case CMD_CASE_HELP:
++		VL_usage(1, arr_size, usage_desc_arr);
++		return 1;
+ 
+-    case CMD_CASE_TCP_PORT:
+-        test_conf.tcp_port = strtoul(equ_ptr, 0, 0);
+-        break;
++	case CMD_CASE_TCP_PORT:
++		config.tcp_port = strtoul(equ_ptr, 0, 0);
++		break;
+ 
+-    case CMD_CASE_IP:
+-        test_conf.ip = equ_ptr;
+-        break;
++	case CMD_CASE_IP:
++		config.ip = equ_ptr;
++		break;
+ 
+-    case CMD_CASE_DEVICE:
+-        test_conf.dev_name = equ_ptr;
+-        break;
++	case CMD_CASE_DEVICE:
++		config.dev_name = equ_ptr;
++		break;
+ 
+-    case CMD_CASE_IB_PORT:
+-        test_conf.ib_port = strtoul(equ_ptr, 0, 0);
+-        break;
++	case CMD_CASE_IB_PORT:
++		config.ib_port = strtoul(equ_ptr, 0, 0);
++		break;
+ 
+-    case CMD_CASE_DAEMON:
+-        test_conf.is_daemon = 1;
+-        break;
++	case CMD_CASE_DAEMON:
++		config.is_daemon = 1;
++		break;
+ 
+-    case CMD_CASE_UNICAST:
+-        test_conf.is_unicast = 1;
+-        break;
++	case CMD_CASE_NUM_SENDERS:
++		config.num_senders = strtoul(equ_ptr, 0, 0);
++		break;
+ 
+-    case CMD_CASE_NUM_SENDERS:
+-        test_conf.num_senders = strtoul(equ_ptr, 0, 0);
+-        break;
++	case CMD_CASE_SRQ:
++		config.is_srq = 1;
++		break;
+ 
+-    case CMD_CASE_SRQ:
+-        test_conf.is_srq = 1;
+-        break;
++	case CMD_CASE_NUM_MESSAGES:
++		config.num_messages = strtoul(equ_ptr, 0, 0);
++		break;
+ 
+-    case CMD_CASE_NUM_MESSAGES:
+-        test_conf.num_messages = strtoul(equ_ptr, 0, 0);
+-        break;
++	case CMD_CASE_MESSAGE_SIZE:
++		config.message_size = strtoul(equ_ptr, 0, 0);
++		break;
+ 
+-    case CMD_CASE_MESSAGE_SIZE:
+-        test_conf.message_size = strtoul(equ_ptr, 0, 0);
+-        break;
++	case CMD_CASE_MCAST_GID:
++		rc = str2gid(equ_ptr, config.mcast_gid);
++		break;
+ 
+-    case CMD_CASE_MCAST_GID:
+-        rc = str2gid(equ_ptr, test_conf.mcast_gid);
+-        break;
++	case CMD_CASE_WAIT_BEFORE_CLEANUP:
++		config.wait_cleanup = 1;
++		break;
+ 
+-    case CMD_CASE_WAIT_BEFORE_CLEANUP:
+-        test_conf.wait_cleanup = 1;
+-        break;
++	case CMD_CASE_NUM_OF_QP:
++		config.num_of_qp = strtoul(equ_ptr, 0, 0);
++		break;
+ 
+-    default:
+-        VL_MISC_ERR(("Error, unknown parameter in the command line"));
+-        return 2;
+-    }/* end case*/
++	case CMD_CASE_SERVER_IN_MCAST:
++		config.server_in_mcast = 1;
++		break;
+ 
+-    return rc;
++	default:
++		VL_MISC_ERR(("Error, unknown parameter in the command line"));
++		return 2;
++	}/* end case*/
++
++	return rc;
+ }
+ 
+ 
+@@ -792,17 +843,16 @@
+ **************************************************/
+ int validate_command_args(void){
+ 
+-    /* TODO: implement this function */
+-    if (test_conf.is_daemon) {
+-        return 0;
+-    }
+-    else{
+-        if (test_conf.ip == "0") {
+-            VL_MISC_ERR(("Bad command arguments: Client must specify IP number"))
+-            return 1;
+-        }
+-    }
+-    return 0;
++	/* TODO: implement this function */
++	if (config.is_daemon)
++		return 0;
++	else{
++		if (config.ip == "0") {
++			VL_MISC_ERR(("Bad command arguments: Client must specify IP number"))
++			return 1;
++		}
++	}
++	return 0;
+ }
+ 
+ /**************************************************
+@@ -810,115 +860,115 @@
+ * Assign the device handle into ibv_context.
+ * return code: 0 - success, other - failure
+ **************************************************/
+-int     get_ib_dev(
++int get_ib_dev(
+ 		OUT				struct ibv_context **ctx)
+ {
+-    int rc = 1;
+-    int num_devices, i;
+-    struct ibv_device **dev_list;
+-    struct ibv_device *ib_dev   = NULL;
++	int rc = 1;
++	int num_devices, i;
++	struct ibv_device **dev_list;
++	struct ibv_device *ib_dev = NULL;
+ 
+-    VL_HCA_TRACE(("Finding IB devices"));
+-    /* get device names in the system */
+-    dev_list = ibv_get_device_list(&num_devices);
+-    if (!dev_list) {
+-        VL_HCA_ERR(("Error, failed to get IB devices list"));
+-        return rc;
+-    }
++	VL_HCA_TRACE(("Finding IB devices"));
++	/* get device names in the system */
++	dev_list = ibv_get_device_list(&num_devices);
++	if (!dev_list) {
++		VL_HCA_ERR(("Error, failed to get IB devices list"));
++		return rc;
++	}
+ 
+-    for (i = 0; i < num_devices; i ++) {
+-        if (!strcmp(ibv_get_device_name(dev_list[i]), test_conf.dev_name)) {
+-            ib_dev = dev_list[i];
+-            break;
+-        }
+-    }
++	for (i = 0; i < num_devices; i ++) {
++		if (!strcmp(ibv_get_device_name(dev_list[i]), config.dev_name)) {
++			ib_dev = dev_list[i];
++			break;
++		}
++	}
+ 
+-    if (!ib_dev) {
+-        VL_HCA_ERR(("Error, IB device %s wasn't found", test_conf.dev_name));
+-	goto cleanup;
+-    }
++	if (!ib_dev) {
++		VL_HCA_ERR(("Error, IB device %s wasn't found", config.dev_name));
++		goto cleanup;
++	}
+ 
+-    VL_HCA_TRACE(("Device %s was found", test_conf.dev_name));
++	VL_HCA_TRACE(("Device %s was found", config.dev_name));
+ 
+-    /* get device handle */
+-    *ctx = ibv_open_device(ib_dev);
+-    if (!(*ctx)) {
+-        VL_HCA_ERR(("Error, failed to open device"));
+-        goto cleanup;
+-    }
++	/* get device handle */
++	*ctx = ibv_open_device(ib_dev);
++	if (!(*ctx)) {
++		VL_HCA_ERR(("Error, failed to open device"));
++		goto cleanup;
++	}
+ 
+-    rc = 0;
++	rc = 0;
+ cleanup:
+ 
+-    if (dev_list)
+-        ibv_free_device_list(dev_list);
+-    
+-    return rc;
++	if (dev_list)
++		ibv_free_device_list(dev_list);
++
++	return rc;
+ }
+ 
+ /**************************************************
+ * Connect between client and daemon
+ **************************************************/
+-int     connect_tcp(
++int connect_tcp(
+ 		INOUT			struct VL_sock_t *sock_p)
+ {
+-    struct VL_sock_props_t  sock_props;    
+-    int rc = 1;
++	struct VL_sock_props_t  sock_props;
++	int rc = 1;
+ 
+-    sock_props.is_daemon = test_conf.is_daemon;
+-    if (!test_conf.is_daemon) 
+-        strncpy(sock_props.ip, test_conf.ip, VL_IP_STR_LENGTH);
+-    
+-    sock_props.port = test_conf.tcp_port;
+-    rc = VL_sock_connect(&sock_props, sock_p);
+-    return rc;  
++	sock_props.is_daemon = config.is_daemon;
++	if (!config.is_daemon) 
++		strncpy(sock_props.ip, config.ip, VL_IP_STR_LENGTH);
++
++	sock_props.port = config.tcp_port;
++	rc = VL_sock_connect(&sock_props, sock_p);
++	return rc;
+ }
+ 
+ /**************************************************
+ * Fill data in buffer using step 
+ **************************************************/
+-void    fill_buff(
++void fill_buff(
+ 		OUT				uint8_t *mem_buf,
+ 		IN				int buf_size,
+ 		IN				int step)
+ {
+-    int i;
++	int i;
+ 
+-    for (i = 0; i < buf_size; ++i) {
+-        mem_buf[i] = ((i*step) & BYTE_MAX_VAL);
+-    }
++	for (i = 0; i < buf_size; ++i) {
++		mem_buf[i] = ((i*step) & BYTE_MAX_VAL);
++	}
+ }
+ 
+ 
+ /**************************************************
+ * Compare data with the expected values
+ **************************************************/
+-int     check_data(
++int check_data(
+ 		IN				const uint8_t *mem_buf,
+ 		IN				int buf_size,
+ 		IN				int step)
+ {
+-    int i;
+-    int rc = 0;
++	int i;
++	int rc = 0;
+ 
+-    for (i = 0; i < buf_size; ++i) 
+-        if (mem_buf[i]  != ((i*step) & BYTE_MAX_VAL)){
+-            VL_DATA_ERR(("Compare Data failed at address 0x%x, Expected Data=%u, Exist Data=%u", i, (i*step)%BYTE_MAX_VAL, mem_buf[i]));
+-            rc = 1;
+-        }
++	for (i = 0; i < buf_size; ++i) 
++		if (mem_buf[i]  != ((i*step) & BYTE_MAX_VAL)){
++			VL_DATA_ERR(("Compare Data failed at address 0x%x, Expected Data=%u, Exist Data=%u", i, (i*step)%BYTE_MAX_VAL, mem_buf[i]));
++			rc = 1;
++		}
+ 
+-    return rc;
++	return rc;
+ }
+ 
+ 
+ /**************************************************
+ * Convert gid from str to array[16]
+ **************************************************/
+-int     str2gid(
+-		IN              const char* gid_str, 
++int str2gid(
++		IN				const char* gid_str,
+ 		OUT				uint8_t *gid)
+ {
+-    const char *cur_char;
++	const char *cur_char;
+ 	char *next_char;
+ 	int i;
+ 
+@@ -941,30 +991,31 @@
+ void print_config(void){
+ 	VL_MISC_TRACE(("--------------------------------------------"));
+ 	VL_MISC_TRACE(("   Process ID                : "VL_PID_FMT, VL_getpid()));
+-	VL_MISC_TRACE(("   Device Name               :\"%s\"", test_conf.dev_name));
+-	VL_MISC_TRACE(("   IB Port                   : %u", test_conf.ib_port));
+-	VL_MISC_TRACE(("   Process Side              : %s", (test_conf.is_daemon)?"Daemon":"Client"));
+-	VL_MISC_TRACE(("   TCP Port                  : %u", test_conf.tcp_port));
++	VL_MISC_TRACE(("   Device Name               :\"%s\"", config.dev_name));
++	VL_MISC_TRACE(("   IB Port                   : %u", config.ib_port));
++	VL_MISC_TRACE(("   Process Side              : %s", (config.is_daemon)?"Daemon":"Client"));
++	VL_MISC_TRACE(("   TCP Port                  : %u", config.tcp_port));
+ 
+-	if (!test_conf.is_daemon) {
+-		VL_MISC_TRACE(("   IP                        : %s", test_conf.ip));
++	if (!config.is_daemon) {
++		VL_MISC_TRACE(("   IP                        : %s", config.ip));
+ 	} else {
+-		VL_MISC_TRACE(("   Number of Clients         : %u", test_conf.num_senders));
++		VL_MISC_TRACE(("   Number of Clients         : %u", config.num_senders));
+ 	}
+ 
+-    VL_MISC_TRACE(("   Number of Messages        : %u", test_conf.num_messages));
+-    VL_MISC_TRACE(("   Message size              : %u", test_conf.message_size));
+-    VL_MISC_TRACE(("   Message Type              : %s", (test_conf.is_unicast)?"Unicast":"Multicast"));
+-    VL_MISC_TRACE(("   SRQ Enabled               : %s", (test_conf.is_srq)?"Yes":"No"));
++	VL_MISC_TRACE(("   Number of Messages        : %u", config.num_messages));
++	VL_MISC_TRACE(("   Number of QPs             : %u", config.num_messages));
++	VL_MISC_TRACE(("   Message size              : %u", config.message_size));
++	VL_MISC_TRACE(("   SRQ Enabled               : %s", (config.is_srq)?"Yes":"No"));
+ 
+-    VL_MISC_TRACE(("   Multicast GID             : %u.%u.%u.%u.%u.%u.%u.%u.%u.%u.%u.%u.%u.%u.%u.%u",
+-				   test_conf.mcast_gid[0], test_conf.mcast_gid[1], test_conf.mcast_gid[2], test_conf.mcast_gid[3],
+-				   test_conf.mcast_gid[4], test_conf.mcast_gid[5], test_conf.mcast_gid[6], test_conf.mcast_gid[7],
+-				   test_conf.mcast_gid[8], test_conf.mcast_gid[9], test_conf.mcast_gid[10], test_conf.mcast_gid[11],
+-				   test_conf.mcast_gid[12], test_conf.mcast_gid[13], test_conf.mcast_gid[14], test_conf.mcast_gid[15]));
++	VL_MISC_TRACE(("   Multicast GID             : %u.%u.%u.%u.%u.%u.%u.%u.%u.%u.%u.%u.%u.%u.%u.%u",
++				   config.mcast_gid[0], config.mcast_gid[1], config.mcast_gid[2], config.mcast_gid[3],
++				   config.mcast_gid[4], config.mcast_gid[5], config.mcast_gid[6], config.mcast_gid[7],
++				   config.mcast_gid[8], config.mcast_gid[9], config.mcast_gid[10], config.mcast_gid[11],
++				   config.mcast_gid[12], config.mcast_gid[13], config.mcast_gid[14], config.mcast_gid[15]));
+ 
+-    VL_MISC_TRACE(("   Wait before cleanup       : %s", (test_conf.wait_cleanup)?"Yes":"No"));
+-    VL_MISC_TRACE(("--------------------------------------------"));
+-    VL_MISC_TRACE(("\n\n"));
++	VL_MISC_TRACE(("   Wait before cleanup       : %s", (config.wait_cleanup)?"Yes":"No"));
++	VL_MISC_TRACE(("   Attach server to mcast    : %s", (config.server_in_mcast)?"Yes":"No"));
++	VL_MISC_TRACE(("--------------------------------------------"));
++	VL_MISC_TRACE(("\n\n"));
+ }
+ 
+
+Modified: trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/multicast_test.h
+===================================================================
+--- trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/multicast_test.h	2006-09-12 09:50:04 UTC (rev 9435)
++++ trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/multicast_test.h	2006-09-12 12:11:18 UTC (rev 9436)
+@@ -62,28 +62,29 @@
+  ##################### */
+ 
+ struct config_t {
+-    int         tcp_port;
+-    const char  *ip;
+-    const char  *dev_name;
+-    int         ib_port;
+-    int         is_daemon;
+-    int         is_unicast;
+-    int         num_senders;
+-    int         is_srq;
+-    int         num_messages;
+-    int         message_size;
+-    uint8_t		mcast_gid[16];
+-    int         wait_cleanup;
++	int         tcp_port;
++	const char  *ip;
++	const char  *dev_name;
++	int         ib_port;
++	int         is_daemon;
++	int         num_senders;
++	int         is_srq;
++	int         num_messages;
++	int         message_size;
++	uint8_t	mcast_gid[16];
++	int         wait_cleanup;
++	int         num_of_qp;
++	int         server_in_mcast;
+ };
+ 
+ 
+ /* Functions prototypes
+  ###################### */
+ int     process_arg(
+-        IN              const int opt_index,
+-        IN              const char* equ_ptr,
+-        IN              const int arr_size,
+-        IN              const struct VL_usage_descriptor_t* usage_desc_arr);
++	IN              const int opt_index,
++	IN              const char* equ_ptr,
++	IN              const int arr_size,
++	IN              const struct VL_usage_descriptor_t* usage_desc_arr);
+ 
+ void    print_config(void);
+ int     validate_command_args(void);
+
+Added: trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/readme.txt
+===================================================================
+--- trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/readme.txt	2006-09-12 09:50:04 UTC (rev 9435)
++++ trunk/contrib/mellanox/ibtp/gen2/userspace/useraccess/multicast_test/readme.txt	2006-09-12 12:11:18 UTC (rev 9436)
+@@ -0,0 +1,57 @@
++NAME
++
++	multicast_test 	- basic test that uses multicast messages over InfiniBand.
++
++DESCRIPTION
++
++	multicast_test is a test that uses multicast messages over Infiniband.
++        Only one server is need to be executed (with the number of clients that will connect to it).
++        All of the clients (from any host in the IB subnet) can connect to this server.
++
++	This test DOESN'T join the multicast group, it just attach a QPs to the multicast group
++        and sends messages to it. Executing this test with a switch in the middle may cause to the
++        multicast packets to be dropped (it depends on the configuration of the switch).
++
++USAGE
++	multicast_test [--help] [--tcp=TCP_PORT] [--ip=IP_NUMBER] [--device=DEVICE_NAME]
++                       [--port=IB_PORT] [--daemon] [--senders=NUM_SENDERS] [--srq] [--messages=MESSAGES]
++                       [--message_size=MESSAGE_SIZE] [--mgid=MCAST_GID] [--wait_cleanup]
++                       [--num_of_qp=NUM_OF_QP] [--server_in_mcast]
++
++	The following parameters determine the behavior of the test:
++
++	[--help]				- Print the message and exit
++
++	[--tcp=TCP_PORT]			- Tcp port (Default: 20000)
++
++	[--ip=IP_NUMBER]			- Ip number
++
++	[--device=DEVICE_NAME]			- Device name (Default: "mthca0")
++
++	[--port=IB_PORT]			- InfiniBand port number (Default: 1)
++
++	[--daemon]				- Daemon side (Default: False)
++
++	[--senders=NUM_SENDERS]			- Number of senders/clients (Default: 1)
++
++	[--srq]					- Use SRQ (Default: False)
++
++	[--messages=MESSAGES]			- Number of messages (Default: 50)
++
++	[--message_size=MESSAGE_SIZE]		- Message size in bytes (Default: 256)
++
++	[--mgid=MCAST_GID]			- Multicast GID
++
++	[--wait_cleanup]			- Wait before release resources
++
++	[--num_of_qp=NUM_OF_QP]			- Number of QPs to use in the client
++
++	[--server_in_mcast]			- Attach server to multicast group before sending packets
++
++EXAMPLE:
++	multicast_test --daemon
++	multicast_test --ip=10.8.2.120 --messages=1000 --message_size=2048 --server_in_mcast
++
++BUGS:  (and To Do List)
++	join the multicast group before using it.
++
+ 
+
+
+

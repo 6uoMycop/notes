@@ -30,15 +30,13 @@ qemu_rdma_exchange_send():
 ```
 ## Migration of VM's ram
 
-At the beginning of the migration, (migration-rdma.c), the sender and the receiver populate the list of RAMBlocks to be registered with each other into a structure. Then, using the aforementioned protocol, they exchange a description of these blocks with each other, to be used later during the iteration of main memory. This description includes a list of all the RAMBlocks, their offsets and lengths, virtual
-addresses and possibly includes pre-registered RDMA keys in case dynamic page registration was disabled on the server-side, otherwise not.
+At the beginning of the migration, (migration-rdma.c), the sender and the receiver populate the list of RAMBlocks to be registered with each other into a structure. Then, using the aforementioned protocol, they exchange a description of these blocks with each other, to be used later during the iteration of main memory. This description includes a list of all the RAMBlocks, their offsets and lengths, virtual addresses and possibly includes pre-registered RDMA keys in case dynamic page registration was disabled on the server-side, otherwise not.
 
 Main memory is not migrated with the aforementioned protocol, but is instead migrated with normal RDMA Write operations.
 
 Pages are migrated in "chunks" (hard-coded to 1 Megabyte right now).
 
-When a chunk is full (or a flush() occurs), the memory backed by the chunk is registered with librdmacm is pinned in memory on
-both sides using the aforementioned protocol. After pinning, an RDMA Write is generated and transmitted for the entire chunk.
+When a chunk is full (or a flush() occurs), the memory backed by the chunk is registered with librdmacm is pinned in memory on both sides using the aforementioned protocol. After pinning, an RDMA Write is generated and transmitted for the entire chunk.
 
 Chunks are also transmitted in batches: This means that we do not request that the hardware signal the completion queue for the completion of *every* chunk. The current batch size is about 64 chunks (corresponding to 64 MB of memory). Only the last chunk in a batch must be signaled. This helps keep everything as asynchronous as possible and helps keep the hardware busy performing RDMA operations.
 

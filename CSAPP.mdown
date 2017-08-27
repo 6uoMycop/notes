@@ -3,6 +3,17 @@
 </script>
 
 # Computer Systems: A Programmer's Perspective
+## A Tour of Computer Systems
+### Important Themes
+#### Concurrency and Parallelism
+**Thread-Level Concurrency**
+
+![Multi-core processor organization. Four processor cores are integrated onto a single chip.](multicore_processor.png)
+
+Multi-core processors have several CPUs (referred to as "cores") integrated onto a single integrated-circuit chip. Figure 1.17 illustrates the organization of a typical multi-core processor, where the chip has four CPU cores, each with its own L1 and L2 caches, and with L1 cache split into two parts - one to hold recently fetched instructions and one to hold data. The cores share higher levels of cache as well as the interface to main memory.
+
+Hyperthreading, sometimes called *simultaneous multi-threading*, is a technique that allows a single CPU to execute multiple flow of control. It involves having multiple copies of some of the CPU hardware, such as program counters and register files, while having only single copies of other parts of the hardware, such as the units that perform floating-point arithmetic. Whereas a conventional processor requires around 20000 clock cycles to shift between different threads, a hyperthreaded processor decides which of its threads to execute on a cycle-by-cycle basis. It enables the CPU to take better advantage of its processing resources. For example, if one thread must wait for some data to be loaded into a cache, the CPU can proceed with the execution of a different thread. As an example, the Intel Core i7 processor can have each core executing two threads, and so a four-core system can actually execute eight threads in parallel.
+
 ## Program Structure and Execution
 ### Representing and Manipulating Information
 #### Information Storage
@@ -44,7 +55,7 @@ A string in C is encoded by an array of characters terminated by the null (havin
 ##### Integral Data Types
 C supports a variety of *integral* data types - ones that represent finite ranges of integers. Each type can specify a size with keyword `char`, `short`, `long`, as well as an indication of whether the represented number are all nonnegative (declared as `unsigned`), or possibly negative (the default). The number of bytes allocated for the different sizes varies according to whether the program is compiled for 32 or 64 bits.
 
-One important feature to note is that the ranges are not symmetric - the range of negative numbers extends one further than the range of positive numbers. We will see why this happend
+One important feature to note is that the ranges are not symmetric - the range of negative numbers extends one further than the range of positive numbers. We will see why this happens when we consider how negative numbers are represented.
 
 ##### Unsigned Encodings
 Let us consider an integer data type of \\( w \\)) bits. We write a bit vector as either \\( \vec{x} \\), to denote the entire vector, or as \\( [x_{w-1},x_{w-2},...,x_0] \\) to denote the individual bits within the vector. Treating \\( \vec{x} \\) as a number written in binary notation, we obtain the *unsigned* interpretation of \\( \vec{x} \\). In this encoding, each bit \\( x_i \\) has value 0 or 1, with the latter case indicating that value \\( 2^{i} \\) should be included as part of the numeric value. We can express this interpretation as a function \\( B2U_w \\) (for "binary to unsigned", length \\( w \\)):
@@ -66,10 +77,94 @@ The most significant bit \\( x_{w-1} \\) is also called the *sign bit*. Its "wei
 
 \\( B2U_4([1011]) =  -1 \cdot 2^3 + 0 \cdot 2^2 + 1 \cdot 2^1 + 1 \cdot 2^0 = -5 \\)
 
+> Formatted printing with fixed-width types requires use of macros that expand into format strings in a system-dependent manner. So, for example, the values of variables `x` and `y` of types `int32_t` and `uint64_t` can be printed by the following call to `printf`: `printf("x = %" PRId32 ", y = %" PRIu64 " \n", x, y);`
+
 ##### Signed versus Unsigned in C
 Adding character 'U' or 'u' as a suffix creates an unsigned constant; for example, `12345U` or `Ox1A2Bu`.
 
 ### Machine-Level Representation of Programs
+#### Control
+##### Condition Codes
+In addition to the integer registers, the CPU maintains a set of single-bit *condition code* registers describing attributes of the most recent arithmetic or logical operation. These registers can then be used to perform conditional branches. These condition codes are the most useful:
+
+- `ZF`: Zero flag. The most recent operation yielded zero.
+- `SF`: Sign flag. The most recent operation yielded a negative value.
+- ...
+
+For example, suppose we used one of the `ADD` instructions to perform the equivalent of the C assignment `t = a + b`, where variables `a`, `b`, and `t` are integers. Then the condition codes would be set according to the following C expressions:
+```
+ZF    (t == 0)                                Zero
+SF    (t < 0)                                 Negative
+...
+```
+
+#### Procedures
+Procedures are a key abstraction in software. They provide a way to package code that implements some functionality with a designated set of arguments and an optional return value. This function can then be invoked from different points in a program. Well-designated software uses procedures as an abstraction mechanism hiding the detailed implementation of some action while providing a clear and concise interface definition of what values will be computed and whet effects the procedure will have on the program state. Procedures come in many guises in different programming languages - functions, methods, subroutines, handlers, and so on - but they all share a general rule set of features.
+
+There are many different attributes that must be handled when providing machine-level support for procedures. For discussion purposes, suppose procedure `P` call procedure `Q`, and `Q` then executes and returns back to `P`. These actions involve one or more of the following mechanisms:
+
+- *Passing control.* The program counter must be set to the starting address of the code for `Q` upon entry and then set to the instruction in `P` following the call to `Q` upon return.
+- *Passing data.* `P` must be able to provide one or more statements to `Q`, and `Q` must be able to return a value back to `P`.
+- *Allocating and deallocating memory.* `Q` may need to allocate space for local variables when it begins and then free that storage before it returns.
+
+The x86-64 implementation of procedures involves a combination of special instructions and a set of conventions on how to use the machine resources, such as the registers and the program memory. Great effort has been made to minimize the overhead involved in invoking a procedure. As a consequence, it follows what can be seen as a minimalist strategy, implementing only as much of the above set of mechanisms as is required for each particular procedure. In our presentation, we build up the different mechanisms step by step, first describing control, then data passing, and finally, memory management.
+
+##### The Run-Time Stack
+As described in Section 3.4.4, the x86-64 stack grows toward lower addresses and the stack pointer `%rsp` points to the top element of the stack.
+
+![General stack frame structure](stack_frame.png)
+
+Figure 3.25 shows the overall structure of the run-time stack, including its partitioning into stack frames, in its most general form. The frame for the currently executing procedure is always at the top of the stack. 
+
+##### Control Transfer
+Passing control from function `P` to function `Q` involves setting the program counter (PC) to the starting address of the code for `Q`. However, when it later comes time for `Q` to return, the processor must have some record of the code location where it should resume the execution of `P`. This information is recorded in x86-64 machines by invoking procedure `Q` with the instruction `call Q`. This instruction pushes an address \\( A \\) onto the stack and sets the PC to the beginning of `Q`. The pushed address \\( A \\) is referred to as the *return address* and is computed as the address of the instruction immediately following the `call` instruction. The counterpart instruction `ret` pops an address \\( A \\) off the stack and sets the PC to A.
+
+##### Data Transfer
+In addition to passing control to a procedure when called, and then back again when the procedure returns, procedure calls may involve passing data as arguments, and returning from a procedure may also involve returning a value. With x86-64, most of these data passing to and from procedures take place via registers. For example, we have already seen numerous examples of functions where arguments are passed in registers `%rdi`, `%rsi`, and others, and where values are returned in register `%rax`. When procedure `P` calls procedure `Q`, the code for `P` must first copy the arguments into the proper registers. Similarly, when `Q` returns back to `P`, the code for `P` can access the returned value in register `%rax`. In this section, we explore these conventions in greater detail.
+
+With x86-64, up to six integral (i.e., integer and pointer) arguments can be passed via registers. The registers are used in a specified order, with the name used for a register depending on the size of the data type being passed. These are shown in Figure 3.28. Arguments are allocated to these registers according to their ordering in the argument list. Arguments smaller than 64 bits can be accessed using the appropriate subsection of the 64-bit register. For example, if the first argument is 32 bits, it can be accessed as `%edi`.
+
+When a function has more than six integral arguments, the other ones are passed on the stack. Assume that procedure `P` calls procedure `Q` with \\( n \\) integral arguments, such that \\( n > 6 \\). Then the code for `P` must allocate a stack frame with enough storage for arguments 7 through \\( n \\), as illustrated in Figure 3.25. It copies arguments 1-6 into the appropriate registers, and it puts arguments 6 through \\( n \\) onto the stack, with argument 7 at the top of the stack.
+
+##### Local Storage on the Stack
+Typically, a procedure allocates space on the stack frame by decrementing the stack pointer. This results in the portion of the stack frame labeled "Local variables" in Figure 3.25.
+
+##### Local Storage in Registers
+The set of program registers act as a single resource shared by all of the procedures. Although only one procedure can be active at a given time, we must make sure that when one procedure (the *caller*) calls another (the *callee*), the callee does not overwrite some register value that the caller planned to use later.
+
+By convention, registers `%rbx`, `%rbp`, and `%r12-%r15` are classified as *callee-saved* registers. When procedure `P` calls procedure `Q`, `Q` must *preserve* the values of these registers, ensuring that they have the same values when `Q` returns to `P` as they did when `Q` was called. Procedure `Q` can preserve a register value by either not changing it at all or by pushing the original value on the stack, altering it, and then popping the old value from the stack before returning. The pushing of register values has the effect of creating the portion of the stack frame labeled "Saved registers" in Figure 3.25.
+
+#### Array Allocation and Access
+##### Basic Principles
+For data type \\( T \\) and integer constant \\( N \\), consider a declaration of the form:
+
+\\( T \; \text{A}[N]; \\)
+
+Let us denote the starting location as \\( x_A \\). The declaration has two effects. First, it allocates a contiguous region of \\( L \cdot N \\) bytes in memory, where \\( L \\) is the size (in bytes) of data type \\( T \\). Second, it introduces an identifier `A` that can be used as a pointer to the beginning of the array. The value of this pointer will \\( x_A \\). The array elements can be accessed using an integer ranging between 0 and \\( N-1 \\). Array element \\( i \\) will be stored at address \\( x_A + L \cdot i \\).
+
+As examples, consider the following declarations:
+```C
+char    A[12];
+char   *B[8];
+int     C[6];
+double *D[5];
+```
+These declarations will generate arrays with the following parameters:
+
+Array | Element size | Total size | Start address | Element \\( i \\)
+------------ | ------------- | ------------- | ------------- | -------------
+A | 1 | 12 | \\( x_A \\) | \\( x_A + i \\)
+B | 8 | 64 | \\( x_B \\) | \\( x_B + 8i \\)
+C | 4 | 24 | \\( x_C \\) | \\( x_C + 4i \\)
+D | 8 | 40 | \\( x_D \\) | \\( x_D + 8i \\)
+
+Array `A` consists of 12 single-byte (`char`) elements. Array `C` consists of 6 integers, each running 4 bytes. `B` and `D` are both arrays of pointers, and hence the array elements are 8 bytes each.
+
+##### Pointer Arithmetic
+C allows arithmetic on pointers, where the computed value is scaled according to the size of the data type referenced by the pointer. That is, if `p` is a pointer to data of type \\( T \\), and the value of `p` is \\( x_{p} \\), then the expression `p+i` has value \\( x_{p} + L \cdot i \\), where \\( L \\) is the size of data type \\( T \\).
+
+The unary operators \\( \& \\) and \\( \* \\) allow the generation and dereferencing of pointers. That is, for an expression \\( Expr \\) denoting some object, \\( \&Expr \\) is a pointer giving the address of the object. For an expression \\( AExpr \\) denoting an address, \\( \*Expr \\) gives the value at that address. The expressions \\( Expr \\) and \\( \*\&Expr \\) are therefore equivalent. The array subscripting operation can be applied to both arrays and pointers. The array reference `A[i]` is identical to the expression `*(A+i)`. It computes the address of the \\( i \\)th array element and then accesses this memory location.
+
 #### Heterogeneous Data Structures
 ##### Unions
 Unions provide a way to circumvent the type system of C, allowing a single object to be referenced according to multiple types. The syntax of a union declaration is identical to that of structures, but its semantics are very different. Rather than having the different fields reference different blocks of memory, they all reference the same block.
@@ -91,6 +186,36 @@ U3 | 0 | 0 | 0 | 8
 For pointer `p` of type `union U3 *`, references `p->c`, `p->i[0]`, and `p->v` would all references the beginning of the data structure. Observe also that the overall size of a union equals the maximum size of any of its fields.
 
 #### Combining Control and Data in Machine-Level Programs
+##### Understanding Pointers
+Pointers are a central feature of the C programming language. They serve as a uniform way to generate references to elements within different data structures. Pointers are a source of confusion for novice programmers, but the underlying concepts are fairly simple. Here we highlight some key principles of pointers and their mapping into machine code.
+
+- *Every pointer has an associated type.* This type indicates what kind of object the pointer points to. Using the following pointer declarations as illustrations
+  ```
+  int *ip;
+  char **cpp;
+  ```
+  variable `ip` is a pointer to an object of type `int`, while `cpp` is a pointer to an object that itself is a pointer to an object of type `char`. In general, if the object has type \\( T \\), then the pointer has type \\( \*T \\). The special `void *` type represents a generic pointer. For example, the `malloc` function returns a generic pointer, which is converted to a typed pointer via either an explicit cast or by the implicit casting of the assignment operation. Pointer types are not part of machine code; they are an abstraction provided by C to help programmers avoid addressing errors.
+- *Every pointer has a value.* This value is an address of some object of the designated type.
+- *Pointers are created with the `&` operator.*
+- *Pointers are dereferenced with the `*` operator.* The result is a value having the type associated with the pointer. Dereferencing is implemented by a memory reference, either storing to or retrieving from the specified address.
+- *Arrays and pointers are closely related.* The name of an array can be referenced (but not updated) as if it were a pointer variable. Array referencing (e.g., `a[3]`) has the exact same effect as pointer arithmetic and dereferencing (e.g., `*(a+3)`). Both array referencing and pointer arithmetic require scaling the offsets by the object size. When we write an expression `p+i` for pointer `p` with value \\( p \\), the resulting address is computed as \\( p + L \cdot i \\), where \\( L \\) is the size of the data type associated with `p`.
+- *Casting from one type of pointer to another changes its type but not its value.*
+- *Pointers can also point to functions.* This provides a powerful capability for storing and passing reference to code, which can be invoked in some other part of the program. For example, if we have a function defined by the prototype
+  ```
+  int fun(int x, int *p);
+  ```
+  then we can declare and assign a pointer `fp` to this function by the following code sequence:
+  ```
+  int (*fp)(int, int *);
+  fp = fun;
+  ```
+  We can then invoke the function using this pointer:
+  ```
+  int y = 1;
+  int result = fp(3, &y);
+  ```
+  The value of a function pointer is the address of the first instruction in the machine-code representation of the function.
+
 ##### Thwarting Buffer Overflow Attacks
 **Stack Randomization**
 
@@ -140,21 +265,25 @@ Here are some details about the Y86-64 instructions.
 - The `call` function pushes the return address on the stack and jumps to the destination address. The `ret` instruction returns from such a call.
 - The `pushq` and `popq` instructions implement push and pop, just as they do in x86-64.
 
-#### Instruction Encoding
+##### Instruction Encoding
 Figure 4.2 shows the byte-level encodings of the instructions. Each instruction requires between 1 and 10 bytes, depending on which fields are required. Every instruction has an initial byte identifying the instruction type.
 
 As shown in Figure 4.4, each of the 15 program register has an associated *register identifier* (ID) ranging from `0` to `0xE`. The program registers are stored within the CPU in a *register file*, a small random access memory where the register IDs serve as addresses.
 
-Number | Register name
------------- | -------------
-0 | `%rax`
-1 | `%rcx`
-2 | `%rdx`
-3 | `%rbx`
-4 | `%rsp`
-5 | `%rbp`
-... | ...
-
+```
+------------------------------------------------------
+NUmber    Register name       Number    Register name
+------------------------------------------------------
+  0           %rax              8            %r8
+  1           %rcx              9            %r9
+  2           %rdx              A            %r10
+  3           %rbx              B            %r11
+  4           %rsp              C            %r12
+  5           %rbp              D            %r13
+  6           %rsi              E            %r14
+  7           %rdi              F          No register
+------------------------------------------------------
+```
 Some instructions are just 1 byte long, but those that require operands have longer encodings. First, there can be an additional *register specifier type*, specifying either one or two registers. These registers are called `rA` and `rB` in Figure 4.2. As the assembly-code versions of the instructions show, they can specify the registers used for data sources and destinations, as well as the base register used in an address computation, depending on the instruction type. Instructions that have no operands, such as branches and `call`, do not have a register specifier byte.
 
 Some instructions require an additional 8-byte *constant word*. This word can serve as the immediate data for `irmovq`, the displacement for `rmmovq` and `mrmovq` address specifiers, and the destination of branches and calls.
@@ -165,6 +294,79 @@ One important property of any instruction set is that the byte encodings must ha
 
 #### Sequential Y86-64 Implementations
 Now we have the components required to implement a Y86-64 processor. As a first step, we describe a processor called SEQ (for "sequential" processor). On each clock cycle, SEQ performs all the steps required to process a complete instruction. This would require a very long cycle time, however, and so the clock rate would be unacceptable low.
+
+#### Logic Design and the Hardware Control Language HCL
+##### Logic Gates
+
+![Logic gate types.](logic_gate.png)
+
+##### Combinational Circuits and HCL Boolean Expressions
+By assembling a number of logic gates into a network, we can construct computational blocks known as *combinational circuits*.
+
+![Combinational circuit to test for bit equality.](combinational_circuit.png)
+
+Figure 4.10 shows an example of a simple combinational circuit that we will find useful. It has two inputs, `a` and `b`. It generates a single output `eq`, such that the output will equal 1 if either `a` and `b` are both 1 (detected by the upper AND gate) or are both 0 (detected by the lower AND gate). We write the function of this network in HCL as
+```
+bool eq = (a && b) || (!a && !b);
+```
+##### Word-Level Combinational Circuits and HCL Integer Expressions
+Combinational logic circuits can be designed to perform many different types of operations on word-level data. The detailed design of these is beyond the scope of our presentation. One important combinational circuit, known as an *arithmetic/logic unit* (ALU), is diagrammed at an abstract level in Figure 4.15.
+
+##### Memory and Clocking
+Combinational circuits, by their nature, do not store any information. Instead, they simply react to the signals at their inputs, generating outputs equal to some function of the inputs. To create *sequential circuits* - that is, systems that have state and perform computations on that state - we must introduce devices that store information presented as bits. Out storage devices are all controlled by a single *clock*, a periodic signal that determines when new values are to be loaded into the devices. We consider two classes of memory devices:
+
+- *Clocked register* (or simply *registers*) store individual bits or words. The clock signal controls the loading of the register with the value at its input.
+- *Random access memories* (or simply *memories*) store multiple words, using an address to select which word should be read or written. Examples of random access memories include (1) the virtual memory system of a processor, where a combination of hardware and operating system software make it appear to a processor that it can access any word within a large address space; and (2) the register file, where register identifiers serve as the addresses. In a Y86-64 processor, the register file holds the 15 program registers (`%rax` through `%r14`).
+
+![Register operation.](register_operation.png)
+
+Figure 4.16 gives a more detailed view of a hardware register and how it operates. For most of the time, the register remains in a fixed state (shown as `x`), generating an output equal to its current state. Signals propagate through the combinational logic preceding the register, creating a new value for the register input (shown as `y`), but the register output remains fixed as long as the clock is low. As the clock rises, the input signals are loaded into the register as its next state (`y`), and this becomes the new register output until the next rising clock edge. A key point is that the registers serve as barriers between the combinational logic in different parts of the circuit. Values only propagate from a register input to its output once every clock cycle at the rising clock edge. Our Y86-64 processors will use clocked registers to hold the program counter (PC), the condition codes (CC), and the program status (Stat).
+
+The following diagram shows a typical register file:
+
+```
+            valA  -------------------
+          <------|                   |
+            srcA |                   |
+          ------>|                   |  valW
+                 |      Register     |<------
+Read ports       |        file       |  dstW    Write port
+            valB |                   |<------
+          <------|                   |
+            srcB |                   |
+          ------>|                   |
+                  -------------------
+```
+
+The register file has two *read ports*, named A and B, and one *write port*, named W. Such a *multiported* random access memory allows multiple read and write operations to take place simultaneously. In the register file diagrammed, the circuit can read the values of two program register and update the state of a third. Each port has an address input, indicating which program register should be selected, and a data output or input giving a value for that program register. The addresses are register identifiers, using the encoding shown in Figure 4.4. The two read ports have address inputs `srcA` and `srcB` and data outputs `valA` and `valB`. The write port has address input `dstW` and data input `valW`.
+
+The register file is not a combinational circuit, since it has internal storage. In our implementation, however, data can be read from the register file as if it were a block of combinational logic having addresses as inputs and the data as outputs. When either `srcA` or `srcB` is set to some register ID, then, after some delay, the value stored in the corresponding program register will appear on either `valA` or `valB`. For example, setting `srcA` to 3 will cause the value of program register `%rbx` to be read, and this value will appear on output `valA`.
+
+The writing of words to the register file is controlled by the clock signal in a manner similar to the loading of values into a clocked register. Every time the clock raises, the value on input `valW` is written to the program register indicated by the register ID on input `dstW`.
+
+Our processor has a random access memory for storing program data, as illustrated below:
+
+```
+                  data out
+error <---------     ^
+               |     |
+               |     |
+              --------------
+             |              |
+read  ------>|     Data     |
+             |    memory    |
+write ------>|              |<------ clock
+             |              |
+              --------------
+                 ^       ^
+                 |       |
+                 |       |
+               address data in
+```
+
+This memory has a single address input, a data input for writing, and a data output for reading. Like the register file, reading from our memory operates in a manner similar to combinational logic: If we provide an address on the `address` input and set the `write` control signal to 0, then after some delay, the value stored at that address will appear on `data out`. The `error` signal will be set to 1 if the address is out of range, and to 0 otherwise. Writing to the memory is controlled by the clock: We set `address` to the desired address, `data in` to the desired value, and write to 1. When we then operate the clock, the specified location in the memory will be updated, as long as the address is valid.
+
+Our processor includes an additional read-only memory for reading instructions.
 
 ##### Organizing Processing into Stages
 In general, processing an instruction involves a number of operations. We organize them in a particular sequence of stages, attempting to make all instructions follow a uniform sequence, even though the instructions differ greatly in their actions.
@@ -193,6 +395,37 @@ The `pushq` instruction starts much like our previous instructions, but in the d
 ![Computations in sequential implementation of Y86-64 instruction rmmovq and mrmovq.](y86-64_sequential_call.png)
 
 Instructions `call` and `ret` bear some similarity to instructions `pushq` and `popq`, except that we push and pop program counter values. With instruction `call`, we push `valP`, the address of of the instruction that follows the `call` instruction. During the PC update stage, we set the `PC` to `valC`, the call destination.
+
+##### SEQ Hardware Structure
+Processing is performed by *hardware units* associated with the different stages.
+
+![Hardware structure of SEQ, a sequential implementation.](SEQ_hardware.png)
+
+In this figure, as well as in our other hardware diagrams, we use the following drawing conventions:
+
+- *Hardware units are shown as light blue boxes*.
+
+##### SEQ Timing
+Our implementation of SEQ consists of combinational logic and two forms of memory devices: clocked register (the program counter and conditional code register) and random access memories (the register file, the instruction memory, and the data memory). Combinational logic does not require any sequencing or control - values propagate through a network of logic gates whenever the inputs change. As we have described, we also assume that reading from a random access memory operates much like combinational logic, with the output word generated based on the address input. Since our instruction memory is only used to read instructions, we can therefore treat this unit as if it were combinational logic.
+
+We are left with just four hardware units that require an explicit control over this sequencing - the program counter, the condition code register, the data memory, and the register file. These are controlled via a single clock signal that triggers the loading of new values into the registers and the writing of values to the random access memories. The program counter is loaded with a new instruction address every clock cycle. The condition code register is loaded only when an integer operation instruction is executed. The data memory is written only when an `rmmovq`, `pushq`, or `call` instruction is executed. The two write ports of the register file allow two program registers to be updated on every clock cycle, but we can use the special register ID `0xF` as a port address to indicate that no write should be performed for this port.
+
+Figure 4.25 shows how the SEQ hardware would process the instructions at line 3 and 4 in the following code sequence, shown in assembly code with the instruction addresses listed on the left.
+
+Each of the diagrams labeled 1 through 4 shows the four state elements plus the combinational logic and the connections among the state elements. We show the combinational logic as being wrapped around the condition code register, because some of the combinational logic (such as the ALU) generates the input to the condition code register, while other parts (such as the branch computation and the PC selection logic) have the condition code register as input. We show the register file and the data memory as having separate connections for reading and writing, since the read operations propagate through these units as if they were combinational logic, while the write operations are controlled by the clock.
+
+The color coding in Figure 4.25 indicates how the circuit signals relate to the different instructions being executed. We assume the processing starts with the condition codes, listed in the order `ZF`, `SF`, and `OF`, set to 100. At the beginning of clock cycle 3 (point 1), the state elements hold the state as updated by the second `irmovq` instruction (line 2 of the listing), shown in light gray. The combinational logic is shown in white, indicating that it has not yet had time to react to the changed state. The clock cycle begins with address Ox014 loaded into the program counter. This causes the `addq` instruction (line 3 of the listing), shown in blue, to be fetched and processed. Values flow through the combinational logic, including the reading of the random access memories. By the end of the cycle (point 2), the combinational logic has generated new values (000) for the condition codes, an update for program register `%rbx`, and a new value (0x016) for the program counter. At this point, the combinational logic has been updated according to the `addq` instruction (shown in blue), but the state still holds the values set by the second `irmovq` instruction (shown in light gray).
+
+As the clock rises to begin cycle 4 (point 3), the updates to the program counter, the register file, and the condition code register occur, and so we show these in blue, but the combinational logic has not yet reacted to these changes, and so we show this in white.
+
+![Tracing two cycles of execution by SEQ.](SEQ_tracing.png)
+
+##### SEQ Stage Implementations
+**Surveying SEQ**
+
+The only problem with SEQ Is that it is too slow. The clock must run slow;y enough so that signals can propagate through all of the stages within a single cycle. As an example, consider the processing of a `ret` instruction. Starting with an updated program counter at the beginning of the clock cycle, the instruction must be read from the instruction memory, the stack pointer must be read from the register file, the ALU must increment the stack pointer by 8, and the return address must be read from the memory in order to determine the next value for the program counter. All of these must be completed by the end of the clock cycle.
+
+This style of implementation does not make very good use of our hardware units, since each unit is only active for a fraction of the total clock cycle. We will see that we can achieve much better performance by introducing pipelining.
 
 ### Optimizing Program Performance
 #### Capabilities and Limitations of Optimizing Compilers
@@ -254,6 +487,9 @@ This code faithfully reproduces the behavior of `func1` for this particular defi
 Recent versions of GCC attempt this form of optimization, either when directed with the command-line option `-finline` or for optimization level `-O1` and higher.
 
 There are times when it is best to prevent a compiler from performing inline substitution. One is when the code will be evaluated using a symbolic debugger, such as GDB. If a function call has been optimized away via inline substitution, then any attempt to trace or set a breakpoint for that call will fail. The second if when evaluating the performance of a program by profiling. Calls to functions that have been eliminated by inline substitution will not be profiled correctly.
+
+#### Expressing Program Performance
+The sequencing of activities by a processor is controlled by a clock providing a regular signal of some frequency, usually expressed in *gigahertz* (GHZ), billions of cycles per second. For example, when product literature characterizes a system as a "4 GHz" processor, it means that the processor clock runs at \\( 4.0 \times 10^9 \\) cycles per second. The time required for each clock cycle is given by the reciprocal of the clock frequency. These typically are expressed in *nanoseconds* (1 nanosecond is \\( 10^{-9} \\) seconds)  or *picoseconds* (1 picosecond is \\( 10^{-12} \\) seconds). For example, the period of a 4 GHz clock can be expressed as either 0.25 nanoseconds or 250 picoseconds. From a programmer's perspective, it is more instructive to express measurements in clock cycles rather than nanoseconds or picoseconds. That way, the measurements express how many instructions are being executed rather than how fast the clock runs.
 
 #### Identifying and Eliminating Performance Bottlenecks
 ##### Program Profiling
@@ -342,8 +578,46 @@ An *erasable programmable ROM (EPROM)* has a transparent quartz window that perm
 
 *Flash memory* is a type of nonvolatile memory, based on EEPROMs, that has become an important storage technology. We will look in detail at a new form of flash-based disk drive, known as a *solid state disk (SSD)*, that provides a faster, sturdier, and less power-hungry alternative to conventional rotating disks.
 
+**Accessing Main Memory**
+
+Data flows back and forth between the processor and the DRAM main memory over shared electrical conduits called *buses*. Each transfer of data between the CPU and memory is accomplished with a series of steps called a *bus transaction*. A *read transaction* transfers data from the main memory to the CPU. A *write transaction* transfers data from the CPU to the main memory.
+
+A *bus* is a collection of parallel wires that carry address, data, and control signals. Depending on the particular bus design, data and address signals can share the same set of wires or can use different sets. Also, more than two devices can share the same bus. The control wires carry signals being performed. For example, is this transaction of interest to the main memory, or to some other I/O device such as disk controller? Is the transaction a read or a write? Is the information on the bus an address or a data item?
+
+![Example bus structure that connects the CPU and main memory.](cpu_memory_bus.png)
+
+Figure 6.6 shows the configuration of an example computer system. The main components are the CPU chip, a chipset that we will call an *I/O bridge (which includes the memory controller), and the DRAM memory modules that make up main memory. These components are connected by a pair of buses: a *system bus* that connects the CPU to the I/O bridge, and a *memory bus* that connects the I/O bridge to the main memory. The I/O bridge translates the signals of the system bus into the electrical signals of the memory bus. As we will see, the I/O bridge also connects the system bus and memory bus to an *I/O bus* that is shared by I/O devices such as disks and graphics cards. FOr now, though, we will focus on the memory bus.
+
+Consider what happens when the CPU performs a load operation such as
+```
+movq A,%rax
+```
+where the contents of address \\( A \\) are loaded into register `%rax`. Circuitry on the CPU chip called the *bus interface* initiates a read transaction on the bus. The read transaction consists of three steps. First, the CPU places the address \\( A \\) on the system bus. The I/O bridge passes the signal along to the memory bus. Next the main memory senses the address signal on the memory bus, reads the address from the memory bus, fetches the data from the DRAM, and writes the data to the memory bus. The I/O bridge translates the memory bus into a system bus signal and passes it along to the system bus. Finally, the CPU senses the data on the system bus, reads the data from the bus, and copies the data to register `%rax`.
+
 ##### Disk Storage
 *Disks* are workhorse storage devices that hold enormous amounts of data, on the order of hundreds to thousands of gigabytes, as opposed to the hundreds or thousands of megabytes in a RAM-based memory.
+
+**Accessing Disks**
+
+> #### Polling
+> The complete protocol for interaction between the host and a controller can be intricate, but the basic handshaking notion is simple. We explain handshaking with an example. Assume that 2 bits are used to coordinate the producer-consumer relationship between the controller and the host. The controller indicates its state through the `busy` bit in the `status` register. The controller sets the `busy` bit when it is busy working and clears the `busy` bit when it is ready to accept the next command. The host signals its wishes via the `command-ready` bit in the `command` register. The host sets the `command-ready` bit when a command is available for the controller to execute. For this example, the host writes output through a port, coordinating with the controller by handshaking as follows:
+>
+> 1. The host repeatedly reads the `busy` bit until that bit becomes clear.
+> 2. The host sets the `write` bit in the `command` register and writes a byte into the `data-out` register.
+> 3. The host sets the `command-ready` bit.
+> 4. When the controller notices that the `command-ready` bit is set, it sets the `busy` bit.
+> 5. The controller reads the command register and sees the `write` command. It reads the `data-out` register to get the byte and does the I/O to the device.
+> 6. The controller clears the `command-ready` bit, clears the `error` bit in the status register to indicate that the device I/O succeeded, and clears the `busy` bit to indicate that it is finished.
+>
+> This loop is repeated for each byte.
+> In step 1, the host is **busy-waiting** or **polling**: it is in a loop, reading the `status` register over and over until the `busy` bit becomes clear. If the controller and device are fast, this method is a reasonable one. But if the wait may be long, the host should probably switch to another task.
+> Clearly, the basic polling operation is efficient, But polling becomes inefficient when it is attempted repeatedly yet rarely finds a device ready for service, while other useful CPU processing remains undone. In such instances, it may be more efficient to arrange for the hardware controller to notify the CPU when the device becomes ready for service, rather than to require the CPU to poll repeatedly for an I/O completion. The hardware mechanism that enables a device to notify the CPU Is called an **interrupt**.
+>
+> #### Interrupt
+> The CPU hardware has a wire called the interrupt-request line that the CPU senses after executing every instruction. When the CPU detects that a controller has asserted a signal on the **interrupt-request line**, the CPU performs a state save and jumps to the **interrupt-handler routine** at a fixed address in memory.
+>
+> #### Direct Memory Access
+> For a device that does large transfers, such as a disk drive, it seems wasteful to use an expensive general-purpose processor to watch status bits and to feed data into a controller register one byte at a time - a process termed **programmed I/O (PIO)**. Many computers avoid burdening the main CPU with PIO by offloading some of this work to a special-purpose processor called a **direct-memory-access (DMA)** controller.
 
 ##### Solid State Disks
 A solid state disk (SSD) is a storage technology, based on flash memory, that in some situations is an attractive alternative to the conventional rotating disk.
@@ -433,10 +707,12 @@ The shell invokes a function in the operating system called the *loader*, which 
 
 #### Symbols and Symbol Tables
 Each relocatable object module, \\( m \\), has a symbol table that contains information about the symbols defined and referenced by \\( m \\). In the context of a linker, there are three different kinds of symbols:
+
 - *Global symbols* that are defined by module \\( m \\) and that can be referenced by other modules.
-- Global symbols that are referenced by module \\( m \\) but defined by some other module.
-Such symbols are called *externals* and correspond to nonstatic C functions and global variables that are defined in other modules.
+- Global symbols that are referenced by module \\( m \\) but defined by some other module. Such symbols are called *externals* and correspond to nonstatic C functions and global variables that are defined in other modules.
 - *Local symbols* that are defined and referenced exclusively by module \\( m \\).
+
+Interestingly, local procedure variables that are defined with the C `static` attribute are not managed on the stack. Instead, the compiler allocates space in `.data` or `.bss` for each definition and creates a local linker symbol in the symbol table with a unique name.
 
 Symbol tables are built by assemblers, using symbols exported by the compiler into the assembly language. An ELF symbol table is contained in the `.symtab` section. It contains an array of entries.
 
@@ -455,8 +731,8 @@ Resolving references to global symbols, however, is trickier. When the compiler 
 void foo(void);
 
 int main() {
-	foo();
-	return 0;
+    foo();
+    return 0;
 }
 ```
 then the compiler runs without a hitch, but the linker terminates when it cannot resolve the reference to `foo`:
@@ -471,6 +747,7 @@ Symbol resolution for global symbols is also tricky because the same symbol migh
 At compile time, the compiler exports each global symbol to the assembler as either *strong* or *weak*, and the assembler encodes this information implicitly in the symbol table of the relocatable object file. Functions and initialized global variables get strong symbols. Uninitialized global variables get weak symbols.
 
 Given this notion of strong and weak symbols, Linux linkers use the following rules for dealing with multiply duplicate symbol names:
+
 - Rule 1: Multiple strong symbols with the same name are not allowed.
 
 For example, suppose we attempt to compile and link the following two C modules:
@@ -535,6 +812,7 @@ When the linker runs, it determines that the `addvec` symbol defined by `addvec.
 
 ##### How Linkers Use Static Libraries to Resolve References
 During the symbol resolution phase, the linker scans the relocatable object files and archives left to right in the same sequential order that they appear on the compiler driver's command line. During this scan, the linker maintains a set \\( E \\) of relocatable object files that will be merged to form the executable, a set \\( U \\) of unresolved symbols, and a set \\( D \\) of symbols that have been defined in previous input files.
+
 - For each input file \\( f \\) on the command line, the linker determines if \\( f \\) is an object file or an archive. If \\( f \\) is an object file, the linker adds \\( f \\) to \\( E \\), updates \\( U \\) and \\( D \\) to reflect the symbol definitions and references in \\( f \\), and proceeds to the next input file.
 - If \\( f \\) is an archive, the linker attempts to match the unresolved symbols in \\( U \\) against the symbols defined by the members of the archive. If some archive member, \\( m \\), defines a symbol that resolves a reference in \\( U \\), then \\( m \\) is added to \\( E \\), and the linker updates \\( U \\) and \\( D \\) to reflect the symbol definitions and references in \\( m \\). This process iterates over the member object files in the archive until a fixed point is reached where \\( U \\) and \\( D \\) no longer change. At this point, any member object files not contained in \\( E \\) are simply discarded and the linker proceeds to the next input file.
 - If \\( U \\) is nonempty when the linker finishes scanning the input files on the command line, it prints an error and terminates. Otherwise, it merges and relocates the object files in *E* to build the output executable file.
@@ -551,6 +829,7 @@ This option affects ELF `DT_NEEDED` tags for **dynamic libraries** mentioned on 
 
 #### Relocation
 Once the linker has completed the symbol resolution step, it has associated each symbol reference in the code with exactly one symbol definition (i.e., a symbol table entry in one of its input object modules). At this point, the linker knows the exact sizes of the code and data sections in its input object modules. It is now ready to begin the relocation step, where it merges the input modules and assigns run-time addresses to each symbol. Relocation consists of two steps:
+
 1. *Relocating sections and symbol definitions.* In this step, the linker merges all sections of the same type into a new aggregate section of the same type. For example, the `.data` sections from the input modules are all merged into one section that will become the `.data` section for the output executable object file. The linker then assigns run-time memory addresses to the new aggregate sections, to each section defined by the input modules, and to each symbol defined by the input modules. When this step is complete, each instruction and global variable in the program has a unique run-time memory address.
 2. *Relocating symbol references within sections.* In this step, the linker modifies every symbol reference in the bodies of the code and data sections so that they point to the correct tun-time address.
 
@@ -569,6 +848,49 @@ To run an executable object file `prog`, we can type its name to the Unix shell'
 linux> ./prog
 ```
 Since `prog` does not correspond to a built-in shell command, the shell assumes that `prog` is an executable object file, which it runs for us by invoking some memory-resident operating system code known as the loader. The loader copies the code and data in the executable object file from disk into memory, and then runs the program by jumping to its first instruction, or *entry point*. This process of copying the program into memory and then running it is known as *loading*.
+
+> The Loader Finds the Entry Point
+>
+> After loading the program, the loader takes a quick look at the value of `e_entry` field from the ELF header. This value contains the program memory address from which the execution will start.
+> Disassembling the executable binary file typically shows that the `e_entry` value carries nothing less than the first address of the code (.text) section. Coincidentally, this program memory address typically denotes the origin of the `_start` function.
+>
+> ```
+> 08048320 <_start>:
+>  8048320:        31 ed              xor ebp,ebp
+>  8048322:        5e                 pop esi
+>  8048323:        89 e1              mov ecx,esp
+>  8048325:        83 e4 f0           and esp,0xfffffff0
+>  8048328:        50                 push eax
+>  8048329:        54                 push esp
+>  804832a:        52                 push edx
+>  804832b:        68 60 84 04 08     push 0x8048460
+>  8048330:        68 f0 83 04 08     push 0x80483f0
+>  8048335:        51                 push ecx
+>  8048336:        56                 push esi
+>  8048337:        68 d4 83 04 08     push 0x80483d4
+>  804833c:        e8 cf ff ff ff     call 8048310 <__libc_start_main@plt> # /lib/x86_64-linux-gnu/libc.so.6
+>  8048341:        f4                 hlt
+> ```
+> The role of the `_start` function is to prepare the input arguments for the __libc_start_main function that will be called next. Its prototype is defined as
+> ```C
+> int __libc_start_main(void *func_ptr,              /* address of main function                */
+> 					    int argc,                    /* number of command line args             */
+>					    char* argv[],                /* command line arg array                  */
+>					    void (*init_func)(void)      /* address of init function                */
+>					    void (*fini_func)(void)      /* address of fini function                */
+>					    void (*rtld_fini_func)(void) /* address of dynamic linker fini function */
+>					    void *stack_end              /* end of the stack address                */
+> ```
+> In fact, all that the instruction prior to the *call* instruction do is to stack up the required arguments for the call in the expected order.
+> The `__libc_start_main()` function is the key player in the process of preparing the environment for the program to run. It not only sets up the environment variables for the program during the program execution, but it also does the following:
+>
+> - Starts up the program's threading
+> - Call the `init_func()` function, which performs initializations required to be completed before the `main()` function starts.
+    The GCC compiler through the `__attribute__((constructor))` keyword supports custom design of the routines you may want to be completed before your program starts.
+> - Registers the `fini_func()` and `rtld_fini_func()` functions to be called to cleanup after the program terminates. Typically, the action of `fini_func()` is inverse to the actions of the `init_func()` function.
+    The GCC compiler through the `__attribute__((destructor))` keyword, supports custom design of the routines you may want to be completed before your program starts. 
+>
+> Finally, after all the actions have been completed, the `__libc_start_main()` calls the `main()` function, thus making your program run.
 
 ![Linux x86-64 run-time memory image.](run-time_memory.png)
 
@@ -590,6 +912,7 @@ linux> gcc -o prog21 main2.c ./libvector.so
 This creates an executable object file `prog21` in a form that can be linked with `libvector.so` at run time. The basic idea is to do some of the linking statistically when the executable file is created, and then complete the linking process dynamically when the program is loaded. It is important to realize that none of the code or data sections from `libvector.so` are actually copied into the executable `prog21` at this point.
 
 When the loader loads and runs the executable `prog21`, it loads the partially linked executable `prog21`. Next it notices that `prog21` contains a `.interp` section, which contains the name of the dynamic linker, which is itself a shared object (e.g., `ld-linux.so` on Linux systems). Instead of passing control to the application, as it would normally do, the loader loads an runs the dynamic linker. The dynamic linker then finishes the linking task by performing the following relocations:
+
 - Relocating the text and data of `libc.so` into some memory segment.
 - Relocating the text and data of `libvector.so` into another memory segment.
 - Relocating any references in `prog21` to symbols defined by `libc.so` and `libvector.so`.
@@ -793,6 +1116,11 @@ At system boot time, the operating system allocates and initializes a jump table
 
 At run time (when the system is executing some program), the processor detects that an event has occurred and determines the corresponding exception number \\( k \\). The processor then triggers the exception by making an indirect procedure call, through entry \\( k \\) of the exception table, to the corresponding handler. The exception number is an index into the exception table, whose starting address is contained in a special CPU register called the *exception table base register*.
 
+An exception is akin to a procedure call, but with some important differences:
+
+- The processor also pushes some additional processor state onto the stack that will be necessary to restart the interrupted program when the handler returns. For example, an x86-64 system pushes the EFLAGS register containing the current condition codes, among other things, onto the stack.
+- When control is being transferred from a user program to the kernel, all of these items are pushed onto the kernel's stack rather than onto the user's stack.
+
 ##### Classes of Exceptions
 **Interrupts**
 
@@ -826,3 +1154,149 @@ The kernel maintains a *context* for each process. The context is the state that
 At certain points during the execution of a process, the kernel can decide to preempt the current process and restart a previously preempted process. This decision is known as *scheduling* and is handled by code in the kernel, called the *scheduler*. When the kernel selects a new process to run, we say that the kernel has *scheduled* that process. After the kernel has scheduled a new process to run, it preempts the current process and transfers control to the new process using a mechanism called a *context switch* that (1) saves the context of the current process, (2) restores the saved context of some previously preempted process, and (3) passes control to this newly restored process.
 
 A context switch can occur while the kernel is executing a system call on behalf of the user. If the system call blocks because it is waiting for some event to occur, then the kernel can put the current process to sleep and switch to another process. For example, if a `read` system call requires a disk access, the kernel can opt to perform a context switch and run another process instead of waiting for the data to arrive from the disk.
+
+A context switch can also occur as a result of an interrupt. For example, all systems have some mechanism for generating periodic timer interrupts, typically 1ms or 10ms. Each time a timer interrupt occurs, the kernel can decide that the current process has run long enough and switch to a new process.
+
+#### Signals
+In this section, we will study a higher-level software form of exceptional control flow, known as a Linux signal, that allows processes and the kernel to interrupt other processes.
+
+A *signal* is a small message that notifies a process that an event of some type has occurred in the system.
+
+Signals provide a mechanism for exposing the occurrence of such exceptions to user processes. For example, if a process attempts to divide by zero, then the kernel sends it a SIGFPE signal (number 8). Other signals correspond to higher-level software events in the kernel or in other user processes. For example, if you type Ctrl+C (i.e., press the Ctrl key and the 'c' key at the same time) while a process is running in the foreground, then the kernel sends a SIGINT (number 2) to each process in the foreground process group. A process can forcibly terminate another process by sending it a SIGKILL signal (number 9). When a child process terminates or stops, the kernel sends a SIGCHLD signal (number 17) to the parent.
+
+##### Signal Terminology
+The transfer of a signal to a destination process occurs in two distinct steps:
+
+- *Sending a signal.* The kernel *sends* (*delivers*) a signal to a destination process by updating some state in the context of the destination process. The signal is delivered for one of two reasons: (1) The kernel has detected a system event such as divide-by-zero or the termination of a child process. (2) A process has invoked the `kill` function (discussed in the next section) to explicitly request the kernel to send a signal to the destination process. A process can send a signal to itself.
+- *Receiving a signal.* A destination process *receives* a signal when it is forced by the kernel to react in some way to the delivery of the signal. The process can either ignore the signal, terminate, or *catch* the signal by executing a user-level function called a *signal handler*.
+
+A signal that has been sent but not yet received is called a *pending signal*. At any point in time, there can be at most one pending signal of a particular type. If a process has a pending signal of type \\( k \\), then any subsequent signals of type \\( k \\) sent to that process are *not* queued; they are simply discarded. A process can selectively *block* the receipt of certain signals. When a signal is blocked, it can be delivered, but the resulting pending signal will not be received until the process unblocks the signal.
+
+##### Sending Signals
+** Sending Signals with the `/bin/kill` Program**
+
+The `/bin/kill` program sends an arbitrary signal to another process. For example,
+the command
+```
+linux> /bin/kill -9 15213
+```
+sends signal 9 (SIGKILL) to process 15213.
+
+** Sending Signals with the `kill` Function**
+
+Processes send signals to other processes (including themselves) by calling the `kill` function.
+```C
+#include <sys/types.h>
+#include <signal.h>
+
+int kill(pid_t pid, int sig);
+```
+If `pid` is greater than zero, then the `kill` function sends signal number `sig` to process `pid`. Figure 8.29 shows an example of a parent that uses the `kill` function to send a SIGKILL signal to its child.
+```C
+# include "csapp.h"
+
+int main()
+{
+    pid_t pid;
+
+    /* Child sleeps until SIGKILL signal received, then dies */
+    if ((pid = Fork()) == 0){
+        Pause(); /* Wait for a signal to arrive */
+        printf("control should never reach here!\n");
+        exit(0);
+    }
+
+    /* Parent sends a SIGKILL signal to a child */
+    Kill(pid, SIGKILL);
+    exit(0);
+}
+```
+##### Receiving Signals
+The receipt of the signal triggers some *action* by the process. Once the process completes the action, then control passes back to the next instruction \\( I_{next} \\)) in the logical control flow of \\( p \\).
+
+Figure 8.26 shows the default actions associated with each type of signal. For example, the default action for the receipt of a SIGKILL is to terminate the receiving process. On the other hand, the default action for the receipt of a SIGCHLD is to ignore the signal. A process can modify the default action associated with a signal by using the `signal` function. The only exceptions are SIGSTOP and SIGKILL, whose default actions cannot be changed.
+```
+#include <signal.h>
+
+typedef void (*sighandler_t)(int)
+```
+The `signal` function can change the action associated with a signal `signum` in one of three ways:
+
+- Otherwise, handler is the address of a user,defined function, called a *signal handler*, that will be called whenever the process receives a signal of type `signum`. Changing the default action by passing the address of a handler to the `signal` function is known as *installing the handler*. The invocation of the handler is called *catching the signal*. The execution of the handler is referred to as *handling the signal*.
+
+##### Blocking and Unblocking Signals
+Linux provides implicit and explicit mechanisms for blocking signals:
+
+- *Explicit blocking mechanism.* Applications can explicitly block and unblock selected signals using the `sigprocmask` function and its helpers.
+
+```C
+#include <signal.h>
+
+int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+int sigemptyset(sigset_t *set);
+int sigfillset(sigset_t *set);
+int sigaddset(sigset_t *set, int signum);
+```
+Signal sets such as `set` are manipulated using the following function: The `sigemptyset` initializes `set` to the empty set. The `sigfillset` function adds every signal to `set`. The `sigaddset` function, adds `signum` to `set`.
+
+For example, Figure 8.32 shows how you would use `sigprocmask` to temporarily block the receipt of SIGINT signals.
+```C
+sigset_t mask, prev_mask;
+
+sigemptyset(&mask);
+
+sigaddset(&mask, SIGINT);
+
+/* Block SIGINT and save previous blocked set */
+sigprocmask(SIG_BLOCK, &mask, &prev_mask);
+.
+.  // Code region that will not be interrupted by SIGINT
+.
+/* Restore previous blocked set, unblocking SIGINT */
+sigprocmask(SIG_SETMASK, &prev_mask, NULL);
+```
+
+##### Writing Signal Handlers
+**Safe Signal Handling**
+
+- *G4. Declare global variables with `volatile`.* Consider a handler and `main` routine that share a global variable \\( g \\). The handler updates \\( g \\), and `main` periodically reads \\( g \\). To an optimizing compiler, it would appear that the value of \\( g \\) never changes in `main`, and thus it would be safe to use a copy of \\( g \\) that is cached in a register to satisfy every reference to \\( g \\). In this case, the `main` function would never see the updated values from the handler.
+  You can tell the compiler not to cache a variable by declaring it with the `volatile` type qualifier. For example:
+  ```
+  volatile int g;
+  ```
+  The `volatile` qualifier forces the compiler to read the value of \\( g \\) from memory each time it is referenced in the code. In general, as with any shared data structure, each access to a global variable should be protected by temporarily blocking signals.
+
+
+### Virtual Memory
+#### Physical and Virtual Addressing
+
+With virtual addressing, the CPU accesses main memory by generating *virtual address* (*VA*), which is converted to the appropriate physical address before being sent to main memory. The task of converting a virtual address to a physical one is known as *address translation*. Like exception handling, address translation requires close cooperation between the CPU hardware and the operating system. Dedicated hardware on the CPU chip called the *memory management unit* (*MMU*) translates virtual addresses on the fly, using a lookup table stored in main memory whose contents are managed by the operating system.
+
+#### VM as a Tool for Caching
+##### Page Tables
+Figure 9.4 shows the basic organization of a page table. A page table is an array of *page table entries (PTEs)*. Each page in the virtual address has a PTE at a fixed offset in the page table. For our purposes, we will assume that each PTE consists of a *valid bit* and an \\( n \\)-bit address field. The valid bit indicates whether the virtual page is currently cached in DRAM.
+
+##### Page Faults
+In virtual memory parlance, a DRAM cache miss is known as a *page fault*. Figure 9.6 shows the state of our example page table before the fault. The CPU Has referenced a word in VP 3, which is not cached in DRAM. The address translation hardware reads PTE 3 from memory, infers from the valid bit that VP 3 is not cached, and triggers a page fault exception. The page fault exception invokes a page fault handler in the kernel, which selects a victim page - in this case, VP 4 stored in PP 3. If VP 4 has been modified, then the kernel copies it back to disk. In either case, the kernel modifies the page table entry for VP 4 to reflect the fact that VP 4 is no longer cached in main memory.
+
+Next, the kernel copies VP 3 from disk to PP 3 in memory, updates PTE 3, and then returns. When the handler returns, it restarts the faulting instruction, which resends the faulting virtual address to the address translation hardware. But now, VP 3 is cached in main memory, and the page hit is handled normally by the address translation hardware.
+
+#### Address Translation
+##### Speeding Up Address Translation with a TLB
+As we have seen, every time the CPU generates a virtual address, the MMU must refer to PTE in order to translate the virtual address into a physical address. In the worst case, this requires an additional fetch from memory, at a cost of tens to hundreds of cycles. If the PTE happens to be cached in L1, then the cost goes down to a handful of cycles. However, many systems try to eliminate even this cost by including a small cache of PTEs in the MMU called a *translation lookaside buffer* (*TLB*).
+
+Figure 9.16(a) shows the steps involved when there is a TLB hit (the usual case). The key point here is that all of the address translation steps are performed inside the on-chip MMU and thus are fast.
+
+A TLB is a small, virtually addressed cache where each line holds a block consisting of a single PTE.
+
+## Interaction and Communication between Programs
+### Chapter 10: System-Level I/O
+#### Reading and Writing Files
+
+> What's the difference between `ssize_t` and `size_t`?
+> You might have notices that the `read` function has `size_t` input argument and an `ssize_t` return value. So what's the difference between these two types? On x86-64 systems, a `size_t` is defined as an `unsigned long`, and an `ssize_t` (*signed size*) is defined as a `long`. The `read` function returns a signed size rather than an unsigned size because it must return a `-1` on error. Interestingly, the possibility returning a single `-1` reduces the maximum size of a `read` by a factor of 2.
+
+### Chapter 12: Concurrent Programming
+#### Concurrent Programming with Threads
+A *thread* is a logical flow that runs in the context of a process. Thus far in this book, our programs have consisted of a single thread per process. But modern systems also allow us to write programs that have multiple threads running concurrently in a single process. The threads are scheduled automatically by the kernel. Each thread has its own *thread context*, including a unique integer *thread ID* (*TID*), stack, stack pointer, program counter, general-purpose registers, and condition codes. All threads running in a process share the entire virtual address space of that process.
+Logical flows based on threads combine qualities of flows based on processes and IJO multiplexing. Like processes, threads are scheduled automatically by the kernel and are known to the kernel by an integer ID. Like flows based on IJO multiplexing, multiple threads run in the context of a single process, and thus they share the entire contents of the process virtual address space, including its code, data, heap, shared libraries, and open files.

@@ -160,6 +160,30 @@ Switched to branch "master"
 $ git branch
 * master
 ```
+## Altering Commits
+### Using git cherry-pick
+The command `git cherry-pick commit` applies the changes introduced by the named `commit` on the current branch. It will introduce a new, distinct commit. Strictly speaking, using `git cheery-pick` doesn't *alter* the existing history within a repository; instead, it adds to the history.
+
+As with other Git operations that introduce changes via the process of applying a diff, you may need to resolve conflicts to fully apply the changes from the given `commit`.
+
+The command `git cherry-pick` is typically used to introduce particular commits from one branch within a repository onto a different branch. A common use is to forward- or back-port commits from a maintenance branch to a development branch.
+
+In Figure 10-4, the `dev` branch has normal development, whereas the `rel_2.3` contains commits for the maintenance of release `2.3`.
+
+![Before git cherry-pick for one commit](before_cherry-pick.png)
+
+During the course of normal development, a bug is fixed on the development line with commit `F`. If that bugs turns out to be present in the `2.3` release also, the bug fix, `F`, can be made to the `rel_2.3` branch using `git cherry-pick`:
+
+```
+$ git checkout rel_2.3
+
+$ git cherry-pick dev~2 # commit F, above
+```
+After `cherry-pick`, the graph resembles Figure 10-5.
+
+![After git cherry-pick for one commit](after_cherry-pick.png)
+
+In Figure 10-5, commit `F'` is substantially similar to commit `F`, but it is a new commit and will have to be adjusted - perhaps with conflict resolutions - to account for its application to commit `Z` rather commit `E`. None of the commits following `F` are applied after `F'`; only the named commit is picked and applied.
 
 ## Remote Repositories
 ### Repository Concepts

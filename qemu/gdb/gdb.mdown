@@ -1,0 +1,174 @@
+## Running a program under gdb
+GDB takes as its argument the executable file that you want to debug. This is not the .c file or the .o file, instead it is the name of the compiled program. Typically the executable filename has no extension (no ".something" on the end of its name).
+
+Here's how I'd start GDB on my Assignment 1. I have cd'ed to my assign1 directory and I've already compiled and compiled my "mywhich" executable. I issue the command gdb and the name of my executable as below:
+```
+gdb mywhich
+```
+This starts up gdb, prints the following output, and now I have the `(gdb)` prompt:
+```
+GNU gdb (Ubuntu 7.7.1-0ubuntu5~14.04.2) 7.7.1
+Copyright (C) 2014 Free Software Foundation, Inc.
+... blah blah...
+Reading symbols from mywhich...done.
+(gdb)
+```
+Once you've got the (gdb) prompt, the `run` command starts the executable running. If the program you are debugging requires any command-line arguments, you specify them to the run command. If I wanted to run my program with the arguments "cd" and "date", I'd do the following:
+```
+(gdb) r cd date
+Starting program: /afs/ir.stanford.edu/users/z/e/zelenski/a1/mywhich cd date
+```
+This starts the program running. When the program stops, you'll get your (gdb) prompt back.
+
+## Setting breakpoints
+Normally, your program only stops when it exits. Breakpoints allow you to stop your program's execution wherever you want, be it at a function call or a particular line of code. Breakpoints are an essential tool that allow you to stop and examine the program state at a specific context within the execution.
+
+Before you start your program running, you want to set up your breakpoints. The `break` command allows you to do so.
+
+To set a breakpoint at the beginning of the function named `main`:
+
+```
+(gdb) b main
+Breakpoint 1 at 0x400a6e: file mywhich.c, line 44.
+```
+
+To set a breakpoint at line 14 in mywhich.c:
+
+```
+(gdb) b mywhich.c:47
+Breakpoint 2 at 0x400a8c: file mywhich.c, line 47.
+```
+
+The following sections deal with things you can do when you're stopped at a breakpoint, or when you've encountered a segfault or bus error.
+
+## Printing program state: backtraces, variables, and expressions
+Easily one of the most immediately useful things about GDB is its ability to give you a backtrace (or a "stack trace") of your program's execution at any given point. This works especially well for locating things like segfaults and bus errors. If a program named `reassemble` segfaults during execution of a function named `read_frag`, GDB will print the following information:
+```
+Program received signal SIGSEGV, Segmentation fault.
+0x0000000000400ac1 in read_frag (fp=fp@entry=0x603010, nread=nread@entry=0) at reassemble.c:51
+51      if (strlen(unusedptr) == MAX_FRAG_LEN)
+```
+Not only is this information vastly more useful than the terse "Segmentation fault" error that you get outside of GDB, you can use the `backtrace` command to get a full stack trace of the program's execution when the error occurred:
+```
+(gdb) backtrace
+#0  0x0000000000400ac1 in read_frag (fp=fp@entry=0x603010, nread=nread@entry=0) at reassemble.c:51
+#1  0x0000000000400bd7 in read_all_frags (fp=fp@entry=0x603010, arr=arr@entry=0x7fffffff4cb0, maxfrags=maxfrags@entry=5000) at reassemble.c:69
+#2  0x00000000004010ed in main (argc=<optimized out>, argv=<optimized out>) at reassemble.c:211
+```
+Each line represents a stack frame (ie. a function call). Frame #0 is where the error occurred, during the call to `read_frag`. The hexadecimal number 0x0000000000400ac1 is the address of the instruction that caused the segfault (don't worry if you don't understand this, we'll get to it later in the quarter). Finally, you see that the error occurred from the code in reassemble.c, on line 51. All of this is helpful information to go on if you're trying to debug the segfault.
+
+> The usual way to inspect a backtrace of a program is to use an external debugger such as gdb. However, sometimes it is useful to obtain a backtrace programmatically from within a program, e.g., for the purposes of logging or diagnostics.
+> ```C
+> #include <execinfo.h>
+>
+> int backtrace(void **buffer, int size);
+>
+> char **backtrace_symbols(void *const *buffer, int size);
+> ```
+> `backtrace()` returns a backtrace for the calling program, in the array pointed to by `buffer`. A backtrace is the series of currently active function calls for the program. Each item in the array pointed to by `buffer` is of type `void *`, and is the return address from the corresponding stack frame. The `size` argument specifies the maximum number of addresses that can be stored in `buffer`.
+>
+> Given the set of addresses returned by `backtrace()` in `buffer`, `backtrace_symbols()` translates the addresses into an array of strings that describe the addresses symbolically. 
+>
+> Note that names of "static" functions are not exposed, and won't be available in the backtrace.
+>
+> The program below demonstrates the use of `backtrace()` and `backtrace_symbols()`. The following shell session shows what we might see when running the program:
+> 
+> ```
+> $ cc -rdynamic prog.c -o prog
+> $ ./prog 3
+> backtrace() returned 8 addresses
+> ./prog(myfunc3+0x5c) [0x80487f0]
+> ./prog [0x8048871]
+> ./prog(myfunc+0x21) [0x8048894]
+> ./prog(myfunc+0x1a) [0x804888d]
+> ./prog(myfunc+0x1a) [0x804888d]
+> ./prog(main+0x65) [0x80488fb]
+> /lib/libc.so.6(__libc_start_main+0xdc) [0xb7e38f9c]
+> ./prog [0x8048711]
+> ```
+>
+> ```C
+> #include <execinfo.h>
+> #include <stdio.h>
+> #include <stdlib.h>
+> #include <unistd.h>
+>
+> void
+> myfunc3(void)
+> {
+>    int j, nptrs;
+> #define SIZE 100
+>    void *buffer[100];
+>    char **strings;
+>
+>    nptrs = backtrace(buffer, SIZE);
+>    printf("backtrace() returned %d addresses\n", nptrs);
+>
+>    strings = backtrace_symbols(buffer, nptrs);
+>    if (strings == NULL) {
+>        perror("backtrace_symbols");
+>        exit(EXIT_FAILURE);
+>    }
+>
+>    for (j = 0; j < nptrs; j++)
+>        printf("%s\n", strings[j]);
+>
+>    free(strings);
+> }
+>
+> static void   /* "static" means don't export the symbol... */
+> myfunc2(void)
+> {
+>    myfunc3();
+> }
+>
+> void
+> myfunc(int ncalls)
+> {
+>    if (ncalls > 1)
+>        myfunc(ncalls - 1);
+>    else
+>        myfunc2();
+> }
+>
+> int
+> main(int argc, char *argv[])
+> {
+>    if (argc != 2) {
+>        fprintf(stderr, "%s num-calls\n", argv[0]);
+>        exit(EXIT_FAILURE);
+>    }
+>
+>    myfunc(atoi(argv[1]));
+>    exit(EXIT_SUCCESS);
+> }
+> ```
+
+## Controlling execution
+`run` will start (or restart) the program from the beginning and continue execution until a breakpoint is hit or the program exits.
+
+Once stopped at a breakpoint, you have choices for how to resume execution. `continue` will resume execution until the next breakpoint is hit or the program exits. You can single-step through the C source using the `next` or `step` commands, both of which execute a line and stop. The difference between these two is that if the line to be executed is a function call, `next` executes the entire function, but `step` calls function and stops at first line.
+
+## Frequently asked questions about gdb
+#### When I run my program under gdb, it complains about missing symbols. What is wrong?
+
+```
+gdb reassemble
+Reading symbols from reassemble...(no debugging symbols found)...done.
+(gdb)
+```
+This means the program was not compiled with debugging information. Without this information, gdb won't have full symbols for setting breakpoints or printing values or other program tracing features. There's a flag you need to pass to gcc to build debugging info into the executable. If you're using raw gcc, add the -g flag to your command. If you're using a Makefile, make sure the CFLAGS line includes the -g flag.
+
+#### How do I use gdb on a program that takes command-line arguments? I tried passing them when I start gdb, but it complains.
+```
+gdb reassemble slink/allswell_frags
+Reading symbols from reassemble...done. 
+"assign1/slink/allswell_frags" is not a core dump: File format not recognized"
+(gdb)
+```
+The program arguments aren't specified when invoking gdb, they are given to the `run` command once within gdb. A correct sequence is shown below:
+```
+gdb reassemble
+Reading symbols from reassemble...done.
+(gdb) run slink/allswell_frags
+```

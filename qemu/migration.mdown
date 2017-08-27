@@ -1,25 +1,174 @@
-## VM Live Migration: Memory
-- **Pre-copy**:
-  - Memory state is copied first to the destination (through a repetitive process), after which the processor is transferred
-  - Implemented by most Hypervisors (e.g., Xen, KVM, VMWare)
+## Stages in Live Migration
 
-- **Post-copy**:
-  - The VM's processor state is sent first, then its memory contents are transferred
+- Stage 1: Walk RAMBlock List find last page <ram_save_setup()>
+  - Assume all memory dirty
+  - Enable KVM Dirty Page Logging
+- Stage 2: Keep sending dirty RAM pages since last iteration <ram_save_iterate()>
+- Stage 3: Stop guest, transfer remaining dirty RAM, device state
 
-## Pre-Copy Memory Migration
-1. **Warm-up phase**:
+We begin stage 1 by marking each page "dirty" - or "needs to be migrated".
+Then we send across all those pages marked dirty to the destination host.
+That's it for stage 1.
 
-   - Source VM is running while the hypervisor copies all memory pages from source to destination.
+## Ending Stage 2 (or Transitioning from Live to Offline State)
 
-   - If some memory pages changed (become 'dirty') during this process, they will be copied until the rate of re-copied pages is not less than page dirtying rate.
+When to transition from stage 2 to stage 3 is an important decision to
+make: the guest is paused for the duration of stage 3, so it’s desirable
+to have as few pages to migrate as possible in stage 3 to reduce the
+downtime.
 
-2. **Stop-and-copy phase**: Source VM will be stopped; the CPU state and the remaining dirty pages will be copied. The destination VM is started.
+The very first migration implementation in QEMU was rather simplistic:
+if there were 50 or fewer dirty pages left to migrate while in stage 2,
+we would move to stage 3. Or when a particular number of iterations had
+elapsed without making any progress towards having fewer than 50 dirty
+pages.
 
-"down-time": The time between stopping the VM on the original host and resuming it on destination.
+This worked well initially, but then several new constraints had to be
+added. Customers running their customers' workloads on KVM had to provide
+some SLAs, including the maximum acceptable downtime. So we added a few
+tunables to the code to make the conditions to transition from stage 2
+to stage 3 configurable by guest as well as host admins.
 
-## Post-Copy Memory Migration
-1. **Suspend the VM at the source host**. A minimal subnet of the execution state of the VM (CPU state, registers, and optionally non-pageable memory) is transferred to the target.
+The guest admins can specify the maximum acceptable downtime. In our stage
+2 code, we check how many pages are being dirtied in each iteration by the
+guest, and how much time it takes to transfer the pages across, which gives
+us an estimate of the network bandwidth. Depending on this estimate of the
+bandwidth, and the number of dirty pages for the current iteration, we can
+calculate how much time it will take to transfer the remaining pages. If
+this is within the acceptable or configured downtime limit, we transition
+to stage 3.
 
-2. **Resume the VM at the destination without any memory content**. Concurrently, the source actively pushes the remaining memory pages of the VM to the target - an activity known as pre-paging.
+## VMState Example
 
-3. At the target, if the VM tries to access pages that have not been transferred, the VM is temporarily stopped and the fault pages are demand paged over the network from source. These faults are known as 'network faults'.
+
+- e1000 device
+- e482dc3ea e1000: port to vmstate
+- 1 file changed,
+- 81 insertions(+),
+- 163 deletions(-)
+
+Let's take a look at the commit that converted the e1000 device from the old way of handling state migration to VMstate.  81 lines inserted, and 163 lines deleted.  That's a win.
+
+### VMState Example (before)
+
+```
+-static void
+-nic_save(QEMUFile *f, void *opaque)
+{
+-   E1000State *s = opaque;
+-   int i;
+-
+-   pci_device_save(&s->dev, f);
+-   qemu_put_be32(f, 0);
+-   qemu_put_be32s(f, &s->rxbuf_size);
+-   qemu_put_be32s(f, &s->rxbuf_min_shift);
+```
+
+Here is a part of the commit referenced above that removes the older code.  The function, nic_save(), used to "save" - that is send on the wire - all the state it needs for correct operation on the destination, sends each item from its state individually.  Here we see two 32-bit signed integers being sent from a structure.
+
+A corresponding nic_load() function would load the state in the same order.
+
+It's easy to see how this could go wrong, and how this is unnecessary duplication for each device.  Also, developers don't particularly enjoy writing things this way.
+
+### VMState Example (after)
+
+```
++static const VMStateDescription vmstate_e1000 = {
++ .name = "e1000",
++ .version_id = 2,
++ .minimum_version_id = 1,
++ .minimum_version_id_old = 1,
++ .fields = (VMStateField []) {
++ VMSTATE_PCI_DEVICE(dev, E1000State),
++ VMSTATE_UNUSED_TEST(is_version_1, 4), /* was instance id */
++ VMSTATE_UNUSED(4), /* Was mmio_base. */
++ VMSTATE_UINT32(rxbuf_size, E1000State),
++ VMSTATE_UINT32(rxbuf_min_shift, E1000State),
+```
+
+Here we see a part of the commit that added the new VMstate way of saving and restoring device state.  There's just one declarative structure describing what constitutes the device state.  All the boilerplate code is handled elsewhere, transparently to each device.
+
+## Updating Devices
+
+As part of the regular development process, bugs are discovered and fixed, as well as new features are added. When the new changes touch device state, a lot of care has to be taken to retain backward migration compatibility. That is, migration from an older QEMU version should continue to work to newer QEMU versions. Put differently, newer QEMU versions should continue to accept an incoming migration stream from an older QEMU version, state changes notwithstanding.
+
+The classic way of handling such changes is by versioning the state per device that is put out on the wire.  The source QEMU does not need to worry about what version the destination runs. It is purely up to the destination QEMU to interpret the various formats that get sent to it.
+
+The destination QEMU's equivalent of the load functions check for what version of the device state is being sent. Depending on the version, the incoming data is stored into corresponding state variables in the destination's device structures. This means all the version-related complexities exist on the destination side of the migration process.
+
+Of course, a destination QEMU that is at a lower version than source QEMU has no way of knowing what is being sent, and migration is failed in this case.
+
+But this versioning scheme has a problem: imagine the e1000 device’s state is at version 2. Now we add a new feature, which requires an addition to the state, bumping up the version to 3. Now if we detect a bug in the version 2 of the state, we will have to fix that, and update the version to 4. However, backporting such a fix to a stable release, or a downstream that does not want to introduce new features, but only wants to backport fixes, is in a bind. There is no way to backport the fix, and keep the version number consistent with upstream. Bumping up the version to 4 is not right, as the changes for version 3 haven't been backported.
+
+A new scheme to address this situation was needed, and the answer is subsections.  Let's see an example:
+
+## Subsection Example
+
+- commit c2c0014 pic_common: migrate missing fields
+```
+VMSTATE_INT64(timer_expiry,
+APICCommonState), /* open-coded timer state */
+VMSTATE_END_OF_LIST()
++ },
++ .subsections = (VMStateSubsection[]) {
++ {
++   .vmsd = &vmstate_apic_common_sipi,
++   .needed = apic_common_sipi_needed,
++ },
++ VMSTATE_END_OF_LIST()
+}
+};
+```
+
+Here we see a new subsection added to the apic code's vmstate data. The 'needed' function is evaluated on the source. If the result is true (that is, the guest is in a state where that part is needed to be sent across to the destination), the vmstate information in the 'vmsd' section is sent to the destination.
+
+> Example:
+>
+> ```
+> static bool ide_drive_pio_state_needed(void *opaque)
+> {
+>    IDEState *s = opaque;
+>
+>    return ((s->status & DRQ_STAT) != 0)
+>        || (s->bus->error_status & BM_STATUS_PIO_RETRY);
+> }
+>
+> const VMStateDescription vmstate_ide_drive_pio_state = {
+>    .name = "ide_drive/pio_state",
+>    .version_id = 1,
+>    .minimum_version_id = 1,
+>    .pre_save = ide_drive_pio_pre_save,
+>    .post_load = ide_drive_pio_post_load,
+>    .needed = ide_drive_pio_state_needed,
+>    .fields = (VMStateField[]) {
+>        VMSTATE_INT32(req_nb_sectors, IDEState),
+>        VMSTATE_VARRAY_INT32(io_buffer, IDEState, io_buffer_total_len, 1,
+>                             vmstate_info_uint8, uint8_t),
+>        VMSTATE_INT32(cur_io_buffer_offset, IDEState),
+>        VMSTATE_INT32(cur_io_buffer_len, IDEState),
+>        VMSTATE_UINT8(end_transfer_fn_idx, IDEState),
+>        VMSTATE_INT32(elementary_transfer_size, IDEState),
+>        VMSTATE_INT32(packet_transfer_size, IDEState),
+>        VMSTATE_END_OF_LIST()
+>    }
+> };
+>
+> const VMStateDescription vmstate_ide_drive = {
+>    .name = "ide_drive",
+>    .version_id = 3,
+>    .minimum_version_id = 0,
+>    .post_load = ide_drive_post_load,
+>    .fields = (VMStateField[]) {
+>        .... several fields ....
+>        VMSTATE_END_OF_LIST()
+>    },
+>    .subsections = (const VMStateDescription*[]) {
+>        &vmstate_ide_drive_pio_state,
+>        NULL
+>    }
+> };
+> ```
+>
+> Here we have a subsection for the pio state. We only need to save/send this state when we are in the middle of a pio operation (that is what ide_drive_pio_state_needed() checks). If DRQ_STAT is not enabled, the values on that fields are garbage and don't need to be sent.
+
+This eliminates the need for versioning, and cherry-picking fixes is much easier and compatible between various QEMU versions.
