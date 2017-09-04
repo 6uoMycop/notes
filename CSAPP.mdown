@@ -568,6 +568,16 @@ From these call data, we can often infer useful information about the program be
 ### The Memory Hierarchy
 #### Storage Technologies
 ##### Random Access Memory
+**Conventional DRAMs***
+
+The cells (bits) in a DRAM chip are partitioned into \\( d \\) supercells, each consisting of \\( w \\) DRAM cells. A \\( d \times w \\) DRAM stores a total of \\( dw \\) bits of information. The supercells are organized as a rectangular array with \\( r \\) rows and \\( c \\) columns, where \\( rc = d \\). Each supercell has an address of the form \\( (i,j) \\), where \\( i \\) denotes the row and \\( j \\) denotes the column.
+
+![High-level view of a 128-bit 16 x 8 DRAM chip.](DRAM_chip.png)
+
+For example, Figure 6.3 shows the organization of a 16 x 8 DRAM chip with \\( d = 16 \\) supercells, \\( w = 8 \\) bits per supercell, \\( r = 4 \\) rows, and \\( c = 4 \\) columns. The shaded box denotes the supercell at address (2,1). Information flows in and out of the chip via external connectors called *pins*. Each pin carries a 1-bit signal. Figure 6.4 shows two of these sets of pins: eight `data` pins that can transfer 1 byte in or out of the chip, and two `addr` pins that carry two-bit row and column supercell addresses. Other pins that carry control information are not shown.
+
+Each DRAM chip is connected to some circuitry, known as the *memory controller*, that can transfer \\( w \\) bits at a time to and from each DRAM chip. To read the contents of supercell \\( (i,j) \\), the memory controller sends the row address \\( i \\) to the DRAM, followed by the column address \\( j \\). The DRAM responds by sending the contents of supercell \\( (i,j) \\) back to the controller.
+
 **Nonvolatile Memory**
 
 DRAMs and SRAMs are *volatile* in the sense that they lose their information if the supply voltage is turned off. *Nonvolatile memories*, on the other hand, retain their information even when they are powered off. There are a variety of nonvolatile memories. For historical reasons, they are referred to collectively as *read-only memories* (ROMs), even though some types of ROMs can be written to as well as read. ROMs are distinguished by the number of times they can be reprogrammed (written to) and by the mechanism for reprogramming them.
@@ -586,7 +596,7 @@ A *bus* is a collection of parallel wires that carry address, data, and control 
 
 ![Example bus structure that connects the CPU and main memory.](cpu_memory_bus.png)
 
-Figure 6.6 shows the configuration of an example computer system. The main components are the CPU chip, a chipset that we will call an *I/O bridge (which includes the memory controller), and the DRAM memory modules that make up main memory. These components are connected by a pair of buses: a *system bus* that connects the CPU to the I/O bridge, and a *memory bus* that connects the I/O bridge to the main memory. The I/O bridge translates the signals of the system bus into the electrical signals of the memory bus. As we will see, the I/O bridge also connects the system bus and memory bus to an *I/O bus* that is shared by I/O devices such as disks and graphics cards. FOr now, though, we will focus on the memory bus.
+Figure 6.6 shows the configuration of an example computer system. The main components are the CPU chip, a chipset that we will call an *I/O bridge (which includes the memory controller), and the DRAM memory modules that make up main memory. These components are connected by a pair of buses: a *system bus* that connects the CPU to the I/O bridge, and a *memory bus* that connects the I/O bridge to the main memory. The I/O bridge translates the signals of the system bus into the electrical signals of the memory bus. As we will see, the I/O bridge also connects the system bus and memory bus to an *I/O bus* that is shared by I/O devices such as disks and graphics cards. For now, though, we will focus on the memory bus.
 
 Consider what happens when the CPU performs a load operation such as
 ```
@@ -597,8 +607,18 @@ where the contents of address \\( A \\) are loaded into register `%rax`. Circuit
 ##### Disk Storage
 *Disks* are workhorse storage devices that hold enormous amounts of data, on the order of hundreds to thousands of gigabytes, as opposed to the hundreds or thousands of megabytes in a RAM-based memory.
 
-**Accessing Disks**
+**Connecting I/O Devices**
 
+Input/output (I/O) devices such as graphics cards, monitors, mice, keyboards, and disks are connected to the CPU and main memory using an *I/O bus*. Figure 6.11 shows a representative I/O bus structure that connects the CPU, main memory, and I/O devices.
+
+![Example bus structure that connects the CPU, main memory, and I/O devices.](io_bus.png)
+
+Additional devices such as *network adapters* can be attached to the I/O bus by plugging the adapter into empty *expansion slots* on the motherboard that provide a direct electrical connection to the bus.
+
+> The I/O bus in Figure 6.11 is a simple abstraction that allows us to be concrete, without being tied too closely to the details of any specific system. It is based on the *peripheral component interconnect (PCI)* bus, which was popular until around 2010. In the PCI model, each device in the system shares the bus, and only one device at a time can access these wires. In modern systems, the shared PCI bus has been replaced by a *PCI express* (PCIe) bus, which is a set of high-speed serial, point-to-point links connected by switches, akin to the switched Ethernets that you will learn about in Chapter 11. A PCIe bus, with a maximum throughput of 16GB/s, is an order of magnitude faster than a PCI bus, which has a maximum throughput of 533 MB/s.
+
+**Accessing Disks**
+ 
 > #### Polling
 > The complete protocol for interaction between the host and a controller can be intricate, but the basic handshaking notion is simple. We explain handshaking with an example. Assume that 2 bits are used to coordinate the producer-consumer relationship between the controller and the host. The controller indicates its state through the `busy` bit in the `status` register. The controller sets the `busy` bit when it is busy working and clears the `busy` bit when it is ready to accept the next command. The host signals its wishes via the `command-ready` bit in the `command` register. The host sets the `command-ready` bit when a command is available for the controller to execute. For this example, the host writes output through a port, coordinating with the controller by handshaking as follows:
 >

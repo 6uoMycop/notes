@@ -1,38 +1,48 @@
 # QEMU Memory Management
 
-All memory that is available to the guest is organized in RAMBlocks, which, for example, represent the main memory or video memory. The RAMBlocks are organized as a linked list, which allows iterating over them.
-```C
-struct RAMBlock {
-    uint8_t *host;
-    ram_addr_t offset;
-    ram_addr_t used_length;
-    char idstr[256];
-    QLIST_ENTRY(RAMBlock) next;
-    ...
-};
 ```
-`|ram_addr_t|` is used as guest RAM memory offsets.
-![RAMBlock](https://github.com/wangchenghku/qemu/blob/master/docs/ramblock.png)
-
-send to peer in live migration
-```C
-/* Write page header to wire */
-static size_t save_page_header(QEMUFile *f, RAMBlock *block, ram_addr_t offset)
-{
-    size_t size, len;
-
-    qemu_put_be64(f, offset);
-    size = 8;
-
-    if (!(offset & RAM_SAVE_FLAG_CONTINUE)) {
-        len = strlen(block->idstr);
-        qemu_put_byte(f, len);
-        qemu_put_buffer(f, (uint8_t *)block->idstr, len);
-        size += 1 + len;
-    }
-    return size;
-}
-
-qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
-
+-----------------           ------------------
+|    pc-dimm    |           | memory-backend |
+|               | 1       1 |                |  User-visible
+|               |-----------|                |  objects
+|               |           |                |
+-----------------           ------------------
+                                    | 1
+                                    |
+                                  1 |
+-----------------           ------------------
+|  AddressSpace |           |  MemoryRegion  |  Guest
+|               | 1       * |                |  physical
+|               |-----------|                |  RAM
+|               |           |                |  layout
+-----------------           ------------------
+                                    | 1
+                                    |
+                                  1 |
+-----------------           ------------------
+|  RAMList      |           |    RAMBlock    |  Host mmap
+|               | 1       * |                |  memory
+|               |-----------|  uint8_6 *host |  chunks
+|               |           |                |
+-----------------           ------------------
 ```
+
+![RAMBlock](ramblock.png)
+
+## RAM blocks and the ram_addr_t address space
+
+The ram_addr_t namespace is different from the guest physical memory space. The ram_addr_t namespace is a tightly packed address space of all RAMBlocks. Guest physical address 0x100001000 might not be ram_addr_t 0x100001000 since ram_addr_t does not include guest physical memory regions that are reserved, memory-mapped I/O, etc.
+
+> The CPU issues commands to I/O devices using a technique called *memory-mapped I/O*. In a system with memory mapped-I/O, a block of addresses in the address space is reserved for communicating with I/O devices. Each of these addresses is known as an *I/O port*. Each device is associated with (or mapped to) one or more ports when it is attached to the bus.
+>
+> As a simple example, suppose that the disk controller is mapped to port `0xa0`. Then the CPU might initiate a disk read by executing three store instructions to address `0xa0`: The first of these instructions sends a command word that tells the disk to initiate a read, along with other parameters such as whether to interrupt the CPU when the read is finished. The second instruction indicates the logical block number that should be read. The third instruction indicates the main memory address where the contents of the disk sector should be stored.
+
+## Address spaces
+
+All CPU architectures have a memory space and some also have an I/O address space. This is represented by AddressSpace, which contains a tree of MemoryRegions (include/exec/memory.h).
+
+The MemoryRegion is the link between guest physical address space and the RAMBlocks containing the memory. Each MemoryRegion has the ram_addr_t offset of the RAMBlock and each RAMBlock has a MemoryRegion pointer.
+
+Note that MemoryRegion is more general than just RAM. It can also represent I/O memory where read/write callback functions are invoked on access. This is how hardware register accesses from a guest CPU are dispatched to emulated devices.
+
+If a MemoryRegion is a RAM region then the data will be accessed from the RAMBlock's mmapped guest RAM. The address_space_memory global variable is the guest physical memory space.

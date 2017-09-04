@@ -6,7 +6,7 @@ On most older SMP and early multi-core machines, TSC was not synchronized betwee
 The emergence of virtualization once again complicates the usage of TSC. When features such as save/restore or live migration are employed, a guest OS and all its currently running applications may be invisibly transported to an entirely different physical machine. While TSC may be "safe" on one machine, it is essentially impossible to precisely synchronize TSC across a data center or even a pool of machines. As a result, when run in a virtualized environment, rare and obscure "time going backwards" problems might once again occur for those TSC-sensitive applications. Worse, if a guest OS moves from, for example, a 3GHz machine to a 1.5GHz machine, attempts by an OS/app to measure time intervals with TSC may without notice be incorrect by a factor of two.
 
 ## Time Keeping in Xen
-```
+```C
 typedef struct vcpu_time_info {
 
     /*
@@ -35,8 +35,8 @@ This is essentially a mechanism which allows the guest to use direct access to t
 
 In Linux it is implemented in `arch/x86/kernel/pvclock.c` and is shared by a variety of hypervisors.
 
-This is the "tick" type of time source. There is also a pv wallclock (i.e. date and time) interface:
-```
+I'm talking about the "tick" type of time source here, there is also a pv wallclock (i.e. date and time) interface, but I don't think that's what Linux's clocksource is about. Hopefully I've not confused the two (I often do).
+```C
 typedef struct shared_info {
     
     ...
@@ -50,4 +50,100 @@ typedef struct shared_info {
     ...
 
 } shared_info_t;
+```
+
+```
+-------------------       ---------------------------            ---------------------
+|shared_info_t    |       |vcpu_info_t              |--          |arch_vcpu_info_t   |
+|                 |       |                         | |          |                   |
+|                 |       |  evtchn_upcall_pending  | |          |               cr2 |
+|    vcpu_info[]--|---    |                         | |  ------->|                   |
+|                 |  |    |     evtchn_upcall_mask  | |  |       |               pad |
+|                 |  |    |                         | |  |       ---------------------
+| evtchn_pending  |  |    |     evtchn_pending_sel  | |  |
+|                 |  ---->|                         | |  |       ----------------------------
+|                 |       |                   arch--|-|---       |vcpu_time_info_t          |
+|    evtchn_mask  |       |                         | |          |                          |
+|                 |       |                   time--|-|---       |                 version  |
+|                 |       --------------------------- |  |       |                          |
+|     wc_version  |         |-------------------------   |       |                    pad0  |
+|                 |                                      |       |                          |
+|                 |                                      ------->|           tsc_timestamp  |
+|         wc_sec  |                                              |                          |
+|                 |                                              |             system_time  |
+|                 |        ------------------------------        |                          |
+|                 |        |arch_shared_info_t          |        |       tsc_to_system_mul  |
+|        wc_nsec  |  ----->|                            |        |                          |
+|                 |  |     |                   max_pfn  |        |               tsc_shift  |
+|                 |  |     |                            |        |                          |
+|           arch--|---     |pfn_to_mfn_frame_list_list  |        |                    pad1  |
+-------------------        -----------------------------         ----------------------------
+```
+
+```C
+uint64_t tscToNanoseconds(uint64_t tsc, struct vcpu_time_info *timeinfo)
+{
+    return (tsc << timeinfo->tsc_shift) * timeinfo->tsc_to_system_mul;
+}
+```
+Calling this with the value extracted from the TSC register (using the RDTSC instruction) only gives you the number of nanoseconds until some arbitrary point in the past, which is not particularly useful. It can however, be used to determine how much time has elapsed since the system time stamp was written. Every time this is modified by the hypervisor, the TSC value is also written (to the `tsc_timestamp` field of the `vcpu_time_info_t` structure). From this, you can calculate the current system.
+
+After you have the current system time, you add this to the real (wall) time at system time zero, giving you the current time. The wall clock time at system time zero is stored in the `wc_sec` and `wc_nsec` fields of the shared info structure.
+
+> Do We Need System Time?
+>
+> It might seem that you don't need system time. If you have the wall clock time at system boot / resume, and the Time Stamp Counter when this happened, you ought to be able to calculate the current system. In theory, this is the case. In practice, the TSC rate accuracy is limited by the accuracy of the timing circuitry in the system, which is typically prone to a small amount of variable skew. Although it gives a very fine-grained value, it does not give a very accurate one. A system clock using just the TSC value will experience drift. To combat this, this Domain 0 guest is expected to run at NTP client or update its clock from a high-resolution time source. This value is then used to update the system time, reducing drift in the guest.
+
+Implementing the POSIX `gettimeofday()` function requires the use of the shared memory page, the Time-Stamp Counter, and some simple calculations. This section will describe the implementation of the function.
+
+To read these, we need to examine the version value of the `vcpu_time_info_t` structure. If the lowest bit of this is 1, then the timer values are being updated, and so we simply spin until this is not the case. When it is a 0, we keep a copy of the value, attempt to read the wall clock values, and then test the version again. If the version number has not changed, we can proceed; otherwise, we loop.
+
+At first glance, it appears that checking the value of the version is not required. The reason it exists it that a guest may be preempted by the hypervisor and have the time values updated while it is reading them.
+
+```C
+int gettimeofday(struct timeval *tp, struct timezone *tzp)
+{
+    uint64_t tsc;
+    /* Get the time values from the shared info page */
+    uint32_t version, wc_version;
+    uint32_t seconds, nanoseconds, system_time;
+    uint64_t old_tsc;
+    /* Loop until we can read all required values from the same update */
+    do
+    {
+        /* Spin if the time value is being updated*/
+        do
+        {
+            wc_version = shared_info->wc_version;
+            version = shared_info->cpu_info[0].time.version;
+        } while (
+                 version & 1 == 1
+                 ||
+                 wc_version & 1 == 1);
+        /* Read the value */
+        seconds = shared_info->wc_sec;
+        nanoseconds = shared_info->wc_nsec;
+        system_time = shared_info->cpu_info[0].time.system_time;
+        old_tsc = shared_info->cpu_info[0].time.tsc_timestamp;
+    } while (
+             version != shared_info->cpu_info[0].time.version
+             ||
+             wc_version != shared_info->wc_version
+             );
+    /* Get the current TSC value */
+    RDTSC(tsc);
+    /* Get the number of elapsed cycles */
+    tsc -= old_tsc;
+    /* Update the system time */
+    system_time += NANOSECONDS(tsc);
+    /* Update the nanosecond time */
+    nanoseconds += system_time;
+    /* Move complete seconds to the second counter */
+    seconds += nanoseconds / 1000000000;
+    nanoseconds = nanoseconds % 1000000000;
+    /* Return second and millisecond values */
+    tp->tv_sec = seconds;
+    tp->tv_usec = nanoseconds * 1000;
+    return 0;
+}
 ```

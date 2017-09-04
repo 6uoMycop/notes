@@ -159,13 +159,6 @@ Step 5:
 - GVA 2 -> GPA 2 -> HVA 2 -> HPA B
 - GVA 3 -> GPA 3 -> HVA 3 -> HPA E
 
-## Virtio
-Let's start with a quick discussion of two distinct types of virtualization schemes: full virtualization and paravirtualization. In full virtualization, the guest operating system runs on top of a hypervisor that sits on the bare metal. The guest is unaware that it is being virtualized and requires no changes to work in this configuration. Conversely, in paravirtualization, the guest operating system is not only aware that it is running on a hypervisor but includes code to make guest-to-hypervisor transitions more efficient.
-
-![Device emulation in full virtualization and paravirtualization environments](virtio.png)
-
-But in traditional full virtualization environments, the hypervisor must trap these requests, and then emulate the behaviors of real hardware. Although doing so provides the greatest flexibility (namely, running an unmodified operating system), it does introduce inefficiency (see the left side of Figure 1). The right side of Figure 1 shows the paravirtualization case. Here, the guest operating system is aware that it's running on a hypervisor and includes drivers that act as the front end. The hypervisor implements the back-end drivers for the particular device emulation. These front-end and back-end drivers are where `virtio` comes in, providing a standardized interface for the development of emulated device access to propagate code reuse and increase efficiency. 
-
 ## iothread and non-iothread architecture
 The newer architecture is one QEMU thread per vcpu plus a dedicated event loop thread. Each vcpu thread can execute guest code in parallel, offering true SMP support, while the iothread runs the event loop. The rule that core QEMU code never runs simultaneously is maintained through a global mutex that synchronizes core QEMU code across the vcpus and iothread. Most of the time vcpus will be executing guest code and do not need to hold the global mutex. Most of the time the iothread is blocked in `select(2)` and does not need to hold the global mutex.
 

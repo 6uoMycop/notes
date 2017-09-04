@@ -115,6 +115,13 @@ int down_interruptible(struct semaphore *sem);
 
 ![Kernel IO Structure](Kernel_IO_Structure.jpg)
 
+### I/O Ports and I/O Memory
+Every peripheral device is controlled by writing and reading its registers. Most of the time a device has several registers, and they are accessed at consecutive addresses, either in the memory address space or in the I/O address space.
+
+At the hardware level, there is no conceptual difference between memory regions and I/O regions: both of them are accessed by asserting electrical signals on the address bus and control bus (i.e., the *read* and *write* signals) and by reading from or writing to the data bus.
+
+While some manufactures implement a single address space in their chips, others decided that peripheral devices are different from memory and, therefore, deserve a separate address space. Some processors (most notably the x86 family) have separate *read* and *write* electrical lines for I/O ports and special CPU instructions to access ports.
+
 ## Advanced Char Driver Operations
 ### ioctl
 Most drivers need - in addition to the ability to read and write the device - the ability to perform various types of hardware control via the device driver. Most devices can perform operations beyond simple data transfers; user space must often be able to request, for example, that the device lock its door, eject its media, report error information, change a baud rate, or self destruct. These operations are usually supported via the *ioctl* method, which implements the system call by the same name.
