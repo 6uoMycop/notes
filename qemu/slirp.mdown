@@ -1,0 +1,19 @@
+# Configuring Guest Networking
+## User Networking
+**Use case:**
+- You want a simple way for your virtual machine to access to the host, to the internet or to resources available on your local network.
+- You don't need to access your guest from the network or from another guest.
+
+**Solution:**
+- Simply run your guest without specifying network parameters, which by default will create user-level (a.k.a slirp) networking:
+```
+qemu-system-x86_64 -hda /path/to/hda.img
+```
+
+**Notes:**
+- The IP address can be automatically assigned to the guest thanks to the DHCP service integrated in QEMU
+- The default is equivalent to this explicit setup:
+```
+qemu-system-x86_64 -hda /path/to/hda.img -netdev user,id=user.0 -device e1000,netdev=user.0
+```
+- The user.0 identifier above is just to connect the two halves into one. You may use any identifier you wish, such as "n" or "net0".

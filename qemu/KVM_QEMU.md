@@ -158,8 +158,3 @@ Step 5:
 - Similarly other entries are update as and when page fault happens
 - GVA 2 -> GPA 2 -> HVA 2 -> HPA B
 - GVA 3 -> GPA 3 -> HVA 3 -> HPA E
-
-## iothread and non-iothread architecture
-The newer architecture is one QEMU thread per vcpu plus a dedicated event loop thread. Each vcpu thread can execute guest code in parallel, offering true SMP support, while the iothread runs the event loop. The rule that core QEMU code never runs simultaneously is maintained through a global mutex that synchronizes core QEMU code across the vcpus and iothread. Most of the time vcpus will be executing guest code and do not need to hold the global mutex. Most of the time the iothread is blocked in `select(2)` and does not need to hold the global mutex.
-
-![QEMU Global Mutex](qemu_global_mutex.png)

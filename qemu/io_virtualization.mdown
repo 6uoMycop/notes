@@ -137,12 +137,16 @@ Efficiently virtualizing the network is challenging, because of the staggering t
 > The vhost drivers in Linux provide in-kernel virtio device emulation. Normally the QEMU userspace process emulates I/O accesses from the guest. Vhost puts virtio emulation code into the kernel, taking QEMU userspace out of the picture. This allows device emulation code to directly call into kernel subsystems instead of performing system calls from userspace.
 > ## The vhost driver model
 >
+> These are necessary to associate the QEMU process with the vhost-net instance, prepare for virtio feature negotiation, and pass the guest physical memory mapping to the vhost-net driver.
+>
 > During initialization the vhost driver creates a kernel thread called vhost-$pid, where $pid is the QEMU process pid. This thread is called the "vhost worker thread". The job of the worker thread is to handle I/O events and perform the device emulation.
 > 
 > ## In-kernel virtio emulation
+>
+> This means a vhost driver is not a self-contained virtio device implementation, it depends on userspace to handle the control plane while the data plane is done in-kernel.
 >
 > The vhost worker thread waits for virtqueue kicks and then handles buffers that have been placed on the virtqueue. In vhost-net this means taking packets from the tx virtqueue and transmitting them over the tap file descriptor.
 >
 > ## Vhost as a userspace interface
 >
-> This is how the vhost worker thread gets notified by the KVM kernel module when the guest kicks the virtqueue.
+> When a guest kicks the host because it has placed buffers onto a virtqueue, there needs to be a way to signal the vhost worker thread that there is work to do. Since vhost does not depend on the KVM kernel module they cannot communicate directly. Instead vhost instances are set up with an eventfd file descriptor which the vhost worker thread watches for activity. The KVM kernel module has a feature known as ioeventfd for taking an eventfd and hooking it up to a particular guest I/O exit. QEMU userspace registers an ioeventfd for the VIRTIO_PCI_QUEUE_NOTIFY hardware register access which kicks the virtqueue (When the guest writes to the virtqueue kick hardware register the kvm.ko module signals the ioeventfd which the main loop thread is monitoring). This is how the vhost worker thread gets notified by the KVM kernel module when the guest kicks the virtqueue.

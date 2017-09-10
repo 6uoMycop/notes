@@ -1,0 +1,22 @@
+## Offloading specific tasks to worker threads
+
+Although many I/O operations can be performed in a non-blocking fashion, there are system calls which have no non-blocking equivalent. Furthermore, sometimes long-running computations simply hog the CPU and are difficult to break up into callbacks. In these cases dedicated worker threads can be used to carefully move these tasks out of core QEMU.
+
+One example user of worker threads is `posix-aio-compat.c`, an asynchronous file I/O implementation. When core QEMU issues an aio request it is placed on a queue. Worker threads take requests off the queue and execute them outside of core QEMU. They may perform blocking operations since they execute in their own threads and do not block the rest of QEMU. The implementation takes care to perform necessary synchronization and communication between worker threads and core QEMU.
+
+Another example is `ui/vnc-jobs-async.c` which performs compute-intensive image compression and encoding in worker threads.
+
+Since the majority of core QEMU code is not thread-safe, worker threads cannot call into core QEMU code. Simple utilities like `qemu_malloc()` are thread-safe but that is the exception rather than the rule. This poses a problem for communicating worker thread events back to core QEMU.
+
+When a worker thread needs to notify core QEMU, a pipe or a `qemu_eventfd()` file descriptor is added to the event loop. The worker thread can write to the file descriptor and the callback will be invoked by the event loop when the file descriptor becomes readable. In addition, a signal must be used to ensure that the event loop is able to run under all circumstances. This approach is used by `posix-aio-compat.c` and makes more sense (especially the use of signals) after understanding how guest code is executed.
+
+## iothread and non-iothread architecture
+The newer architecture is one QEMU thread per vcpu plus a dedicated event loop thread. Each vcpu thread can execute guest code in parallel, offering true SMP support, while the iothread runs the event loop. The rule that core QEMU code never runs simultaneously is maintained through a global mutex that synchronizes core QEMU code across the vcpus and iothread. Most of the time vcpus will be executing guest code and do not need to hold the global mutex. Most of the time the iothread is blocked in `select(2)` and does not need to hold the global mutex.
+
+![QEMU Global Mutex](qemu_global_mutex.png)
+
+> When ioeventfd is not used the vcpu thread's ioctl(KVM_RUN) returns to userspace with an exit reason indicating that the guest is trying to do PIO or MMIO.
+
+> In the case without ioeventfd the device emulation callback is invoked from the vcpu thread. QEMU's block I/O code is asynchronous so the vcpu thread does not block (in most cases, there are exceptions).
+>
+> The vcpu thread will submit the I/O and then resume guest code execution. The QEMU main loop thread will process the I/O completion and raise an interrupt so the guest sees that the I/O request has finished.

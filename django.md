@@ -1,4 +1,8 @@
+# Getting started
 ## Django at a glance
+Because Django was developed in a fast-paced newsroom environment, it was designed to make common Web-development tasks fast and easy.
+
+> Django is a high-level Python Web framework that encourages rapid development and clean, pragmatic design.
 
 ### Design your model
 
@@ -36,7 +40,7 @@ The migrate command looks at all your available models and creates tables in you
 ### Design your URLs
 To design URLs for an app, you create a Python module called a URLconf. A table of contents for your app, it contains a simple mapping between URL patterns and Python callback functions. URLconfs also serve to decouple URLs from Python code.
 
-Here’s what a URLconf might look like for the Reporter/Article example above:
+Here's what a URLconf might look like for the Reporter/Article example above:
 ```
 # mysite/news/urls.py
 
@@ -388,3 +392,22 @@ def index(request):
     return HttpResponse(template.render(context, request))
 ```
 That code loads the template called `polls/index.html` and passes it a context.
+
+# Using Django
+## How to install Django
+### Install Apache and mod_wsgi
+If you just want to experiment with Django, skip ahead to the next section; Django includes a lightweight web server you can use for testing, so you won’t need to set up Apache until you’re ready to deploy Django in production.
+
+If you want to use Django on a production site, use Apache with mod_wsgi. mod_wsgi can operate in one of two modes: an embedded mode and a daemon mode. In daemon mode, mod_wsgi spawns an independent daemon process that handles requests. The daemon process can run as a different user than the Web server, possibly leading to improved security, and the daemon process can be restarted without restarting the entire Apache Web server, possibly making refreshing your codebase more seamless. Consult the mod_wsgi documentation to determine which mode is right for your setup. Make sure you have Apache installed, with the mod_wsgi module activated. Django will work with any version of Apache that supports mod_wsgi.
+
+If you can't use mod_wsgi for some reason, fear not: Django supports many other deployment options. One is uWSGI; it works very well with nginx. Additionally, Django follows the WSGI spec (PEP 3333), which allows it to run on a variety of server platforms.
+
+# "How-to" guides
+## Deploying Django
+### How to deploy with WSGI
+Django's primary deployment platform is WSGI, the Python standard for web servers and applications.
+
+> Currently, our "Hello World" project runs through the `runserver` command. This is a simple server based on the socket server in the standard library. It has helpful utilities for local development such as auto–code reloading. While it is convenient for local development, `runserver` is not appropriate for production deployment security.
+> 
+> The Web Server Gateway Interface (WSGI) is the specification for how web servers communicate with application frameworks such as Django, and was defined by PEP 333 and improved in PEP 3333. There are numerous choices for web servers that speak
+WSGI, including Apache via mod_wsgi, Gunicorn, uWSGI, CherryPy, Tornado, and Chaussette.

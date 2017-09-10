@@ -1,0 +1,505 @@
+Frame 1: 74 bytes on wire (592 bits), 74 bytes captured (592 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43493 (43493), Dst Port: 7000 (7000), Seq: 0, Len: 0
+
+Frame 2: 74 bytes on wire (592 bits), 74 bytes captured (592 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43493 (43493), Seq: 0, Ack: 1, Len: 0
+
+Frame 3: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43493 (43493), Dst Port: 7000 (7000), Seq: 1, Ack: 1, Len: 0
+
+Frame 4: 126 bytes on wire (1008 bits), 126 bytes captured (1008 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43493 (43493), Dst Port: 7000 (7000), Seq: 1, Ack: 1, Len: 60
+PostgreSQL
+    Type: Startup message
+    Length: 60
+    Parameter name: user
+    Parameter value: root
+    Parameter name: database
+    Parameter value: dbtest
+    Parameter name: application_name
+    Parameter value: pgbench
+
+Frame 5: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43493 (43493), Seq: 1, Ack: 61, Len: 0
+
+Frame 9: 393 bytes on wire (3144 bits), 393 bytes captured (3144 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43493 (43493), Seq: 1, Ack: 61, Len: 327
+PostgreSQL
+    Type: Authentication request
+    Length: 8
+    Authentication type: Success (0)
+PostgreSQL
+    Type: Parameter status
+    Length: 29
+    application_name: pgbench
+PostgreSQL
+    Type: Parameter status
+    Length: 25
+    client_encoding: UTF8
+PostgreSQL
+    Type: Parameter status
+    Length: 23
+    DateStyle: ISO, MDY
+PostgreSQL
+    Type: Parameter status
+    Length: 25
+    integer_datetimes: on
+PostgreSQL
+    Type: Parameter status
+    Length: 27
+    IntervalStyle: postgres
+PostgreSQL
+    Type: Parameter status
+    Length: 21
+    is_superuser: off
+PostgreSQL
+    Type: Parameter status
+    Length: 25
+    server_encoding: UTF8
+PostgreSQL
+    Type: Parameter status
+    Length: 25
+    server_version: 9.3.5
+PostgreSQL
+    Type: Parameter status
+    Length: 31
+    session_authorization: root
+PostgreSQL
+    Type: Parameter status
+    Length: 35
+    standard_conforming_strings: on
+PostgreSQL
+    Type: Parameter status
+    Length: 22
+    TimeZone: Hongkong
+PostgreSQL
+    Type: Backend key data
+    Length: 12
+    PID: 30005
+    Key: 1267585916
+PostgreSQL
+    Type: Ready for query
+    Length: 5
+    Status: Idle (73)
+
+Frame 10: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43493 (43493), Dst Port: 7000 (7000), Seq: 61, Ack: 328, Len: 0
+
+Frame 11: 109 bytes on wire (872 bits), 109 bytes captured (872 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43493 (43493), Dst Port: 7000 (7000), Seq: 61, Ack: 328, Len: 43
+PostgreSQL
+    Type: Simple query
+    Length: 42
+    Query: select count(*) from pgbench_branches
+
+Frame 12: 129 bytes on wire (1032 bits), 129 bytes captured (1032 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43493 (43493), Seq: 328, Ack: 104, Len: 63
+PostgreSQL
+    Type: Row description
+    Length: 30
+    Field count: 1
+PostgreSQL
+    Type: Data row
+    Length: 11
+    Field count: 1
+PostgreSQL
+    Type: Command completion
+    Length: 13
+    Tag: SELECT 1
+PostgreSQL
+    Type: Ready for query
+    Length: 5
+    Status: Idle (73)
+
+Frame 13: 95 bytes on wire (760 bits), 95 bytes captured (760 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43493 (43493), Dst Port: 7000 (7000), Seq: 104, Ack: 391, Len: 29
+PostgreSQL
+    Type: Simple query
+    Length: 28
+    Query: vacuum pgbench_branches
+
+Frame 16: 84 bytes on wire (672 bits), 84 bytes captured (672 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43493 (43493), Seq: 391, Ack: 133, Len: 18
+PostgreSQL
+    Type: Command completion
+    Length: 11
+    Tag: VACUUM
+PostgreSQL
+    Type: Ready for query
+    Length: 5
+    Status: Idle (73)
+
+Frame 17: 94 bytes on wire (752 bits), 94 bytes captured (752 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43493 (43493), Dst Port: 7000 (7000), Seq: 133, Ack: 409, Len: 28
+PostgreSQL
+    Type: Simple query
+    Length: 27
+    Query: vacuum pgbench_tellers
+
+Frame 19: 84 bytes on wire (672 bits), 84 bytes captured (672 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43493 (43493), Seq: 409, Ack: 161, Len: 18
+PostgreSQL
+    Type: Command completion
+    Length: 11
+    Tag: VACUUM
+PostgreSQL
+    Type: Ready for query
+    Length: 5
+    Status: Idle (73)
+
+Frame 20: 96 bytes on wire (768 bits), 96 bytes captured (768 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43493 (43493), Dst Port: 7000 (7000), Seq: 161, Ack: 427, Len: 30
+PostgreSQL
+    Type: Simple query
+    Length: 29
+    Query: truncate pgbench_history
+
+Frame 21: 92 bytes on wire (736 bits), 92 bytes captured (736 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43493 (43493), Seq: 427, Ack: 191, Len: 26
+PostgreSQL
+    Type: Command completion
+    Length: 19
+    Tag: TRUNCATE TABLE
+PostgreSQL
+    Type: Ready for query
+    Length: 5
+    Status: Idle (73)
+
+Frame 22: 71 bytes on wire (568 bits), 71 bytes captured (568 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43493 (43493), Dst Port: 7000 (7000), Seq: 191, Ack: 453, Len: 5
+PostgreSQL
+    Type: Termination
+    Length: 4
+
+Frame 23: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43493 (43493), Dst Port: 7000 (7000), Seq: 196, Ack: 453, Len: 0
+
+Frame 29: 74 bytes on wire (592 bits), 74 bytes captured (592 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 0, Len: 0
+
+Frame 30: 74 bytes on wire (592 bits), 74 bytes captured (592 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43494 (43494), Seq: 0, Ack: 1, Len: 0
+
+Frame 31: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 1, Ack: 1, Len: 0
+
+Frame 32: 126 bytes on wire (1008 bits), 126 bytes captured (1008 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 1, Ack: 1, Len: 60
+PostgreSQL
+    Type: Startup message
+    Length: 60
+    Parameter name: user
+    Parameter value: root
+    Parameter name: database
+    Parameter value: dbtest
+    Parameter name: application_name
+    Parameter value: pgbench
+
+Frame 33: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43494 (43494), Seq: 1, Ack: 61, Len: 0
+
+Frame 34: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43493 (43493), Seq: 453, Ack: 197, Len: 0
+
+Frame 35: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43493 (43493), Dst Port: 7000 (7000), Seq: 197, Ack: 454, Len: 0
+
+Frame 39: 393 bytes on wire (3144 bits), 393 bytes captured (3144 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43494 (43494), Seq: 1, Ack: 61, Len: 327
+PostgreSQL
+    Type: Authentication request
+    Length: 8
+    Authentication type: Success (0)
+PostgreSQL
+    Type: Parameter status
+    Length: 29
+    application_name: pgbench
+PostgreSQL
+    Type: Parameter status
+    Length: 25
+    client_encoding: UTF8
+PostgreSQL
+    Type: Parameter status
+    Length: 23
+    DateStyle: ISO, MDY
+PostgreSQL
+    Type: Parameter status
+    Length: 25
+    integer_datetimes: on
+PostgreSQL
+    Type: Parameter status
+    Length: 27
+    IntervalStyle: postgres
+PostgreSQL
+    Type: Parameter status
+    Length: 21
+    is_superuser: off
+PostgreSQL
+    Type: Parameter status
+    Length: 25
+    server_encoding: UTF8
+PostgreSQL
+    Type: Parameter status
+    Length: 25
+    server_version: 9.3.5
+PostgreSQL
+    Type: Parameter status
+    Length: 31
+    session_authorization: root
+PostgreSQL
+    Type: Parameter status
+    Length: 35
+    standard_conforming_strings: on
+PostgreSQL
+    Type: Parameter status
+    Length: 22
+    TimeZone: Hongkong
+PostgreSQL
+    Type: Backend key data
+    Length: 12
+    PID: 30006
+    Key: 1256475307
+PostgreSQL
+    Type: Ready for query
+    Length: 5
+    Status: Idle (73)
+
+Frame 40: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 61, Ack: 328, Len: 0
+
+Frame 41: 78 bytes on wire (624 bits), 78 bytes captured (624 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 61, Ack: 328, Len: 12
+PostgreSQL
+    Type: Simple query
+    Length: 11
+    Query: BEGIN;
+
+Frame 42: 83 bytes on wire (664 bits), 83 bytes captured (664 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43494 (43494), Seq: 328, Ack: 73, Len: 17
+PostgreSQL
+    Type: Command completion
+    Length: 10
+    Tag: BEGIN
+PostgreSQL
+    Type: Ready for query
+    Length: 5
+    Status: In a transaction (84)
+
+Frame 43: 145 bytes on wire (1160 bits), 145 bytes captured (1160 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 73, Ack: 345, Len: 79
+PostgreSQL
+    Type: Simple query
+    Length: 78
+    Query: UPDATE pgbench_accounts SET abalance = abalance + 2487 WHERE aid = 81390;
+
+Frame 44: 86 bytes on wire (688 bits), 86 bytes captured (688 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43494 (43494), Seq: 345, Ack: 152, Len: 20
+PostgreSQL
+    Type: Command completion
+    Length: 13
+    Tag: UPDATE 1
+PostgreSQL
+    Type: Ready for query
+    Length: 5
+    Status: In a transaction (84)
+
+Frame 45: 128 bytes on wire (1024 bits), 128 bytes captured (1024 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 152, Ack: 365, Len: 62
+PostgreSQL
+    Type: Simple query
+    Length: 61
+    Query: SELECT abalance FROM pgbench_accounts WHERE aid = 81390;
+
+Frame 46: 135 bytes on wire (1080 bits), 135 bytes captured (1080 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43494 (43494), Seq: 365, Ack: 214, Len: 69
+PostgreSQL
+    Type: Row description
+    Length: 33
+    Field count: 1
+PostgreSQL
+    Type: Data row
+    Length: 14
+    Field count: 1
+PostgreSQL
+    Type: Command completion
+    Length: 13
+    Tag: SELECT 1
+PostgreSQL
+    Type: Ready for query
+    Length: 5
+    Status: In a transaction (84)
+
+Frame 47: 140 bytes on wire (1120 bits), 140 bytes captured (1120 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 214, Ack: 434, Len: 74
+PostgreSQL
+    Type: Simple query
+    Length: 73
+    Query: UPDATE pgbench_tellers SET tbalance = tbalance + 2487 WHERE tid = 2;
+
+Frame 48: 86 bytes on wire (688 bits), 86 bytes captured (688 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43494 (43494), Seq: 434, Ack: 288, Len: 20
+PostgreSQL
+    Type: Command completion
+    Length: 13
+    Tag: UPDATE 1
+PostgreSQL
+    Type: Ready for query
+    Length: 5
+    Status: In a transaction (84)
+
+Frame 49: 141 bytes on wire (1128 bits), 141 bytes captured (1128 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 288, Ack: 454, Len: 75
+PostgreSQL
+    Type: Simple query
+    Length: 74
+    Query: UPDATE pgbench_branches SET bbalance = bbalance + 2487 WHERE bid = 1;
+
+Frame 50: 86 bytes on wire (688 bits), 86 bytes captured (688 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43494 (43494), Seq: 454, Ack: 363, Len: 20
+PostgreSQL
+    Type: Command completion
+    Length: 13
+    Tag: UPDATE 1
+PostgreSQL
+    Type: Ready for query
+    Length: 5
+    Status: In a transaction (84)
+
+Frame 51: 176 bytes on wire (1408 bits), 176 bytes captured (1408 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 363, Ack: 474, Len: 110
+PostgreSQL
+    Type: Simple query
+    Length: 109
+    Query: INSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (2, 1, 81390, 2487, CURRENT_TIMESTAMP);
+
+Frame 53: 88 bytes on wire (704 bits), 88 bytes captured (704 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43494 (43494), Seq: 474, Ack: 473, Len: 22
+PostgreSQL
+    Type: Command completion
+    Length: 15
+    Tag: INSERT 0 1
+PostgreSQL
+    Type: Ready for query
+    Length: 5
+    Status: In a transaction (84)
+
+Frame 54: 76 bytes on wire (608 bits), 76 bytes captured (608 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 473, Ack: 496, Len: 10
+PostgreSQL
+    Type: Simple query
+    Length: 9
+    Query: END;
+
+Frame 55: 84 bytes on wire (672 bits), 84 bytes captured (672 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43494 (43494), Seq: 496, Ack: 483, Len: 18
+PostgreSQL
+    Type: Command completion
+    Length: 11
+    Tag: COMMIT
+PostgreSQL
+    Type: Ready for query
+    Length: 5
+    Status: Idle (73)
+
+Frame 56: 71 bytes on wire (568 bits), 71 bytes captured (568 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 483, Ack: 514, Len: 5
+PostgreSQL
+    Type: Termination
+    Length: 4
+
+Frame 57: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 488, Ack: 514, Len: 0
+
+Frame 64: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 7000 (7000), Dst Port: 43494 (43494), Seq: 514, Ack: 489, Len: 0
+
+Frame 65: 66 bytes on wire (528 bits), 66 bytes captured (528 bits) on interface 0
+Ethernet II, Src: 00:00:00_00:00:00 (00:00:00:00:00:00), Dst: 00:00:00_00:00:00 (00:00:00:00:00:00)
+Internet Protocol Version 4, Src: 147.8.177.71 (147.8.177.71), Dst: 147.8.177.71 (147.8.177.71)
+Transmission Control Protocol, Src Port: 43494 (43494), Dst Port: 7000 (7000), Seq: 489, Ack: 515, Len: 0
