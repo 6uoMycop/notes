@@ -84,12 +84,52 @@ Operation | Interpretation
 `E = {'cto': {'name': 'Bob', 'age': 40}}` | Nesting
 
 #### Dictionaries in Action
+##### Basic Dictionary Operations
+The built-in `len` function works on dictionaries, too; it returns the number of items stored in the dictionary or, equivalently, the length of its keys list.
+
 ##### Changing Dictionaries in Place
 ```
 >>> D
 {'eggs': 3, 'ham': 2, 'spam': 1}
 >>> D['ham'] = {'grill': 4, 'bake': 5}
 {'eggs': 3, 'ham': {'grill': 4, 'bake': 5}, 'spam': 1}
+```
+##### More Dictionary Methods
+Dictionary methods provide a variety of type-specific tools. For instance, the dictionary `values` and `items` methods return all of the dictionary's values and `(key,value)` pair tuples, respectively;
+
+```
+>>> D = {'spam': 2, 'ham': 1, 'eggs': 3}
+>>> D.values()
+[3, 1, 2]
+```
+
+Finally, the dictionary `pop` method deletes a key from a dictionary and returns the value it had. It's similar to the list `pop` method, but it takes a key instead of an optional position:
+```
+# pop a dictionary by key
+>>> D
+{'eggs': 3, 'muffin': 5, 'toast': 4, 'spam': 2, 'ham': 1}
+>>> D.pop('muffin')
+5
+>>> D.pop('toast')                         # Delete and return from a key
+4
+>>> D
+{'eggs': 3, 'spam': 2, 'ham': 1}
+```
+
+##### Example: Movie Database
+###### Preview: Mapping values to keys
+Notice how the prior table maps year to titles, but not vice versa. If you want to map the other way - titles to years - you can either code the dictionary differently, or use methods like items that give searchable sequences, though using them to best effect requires more background information than we yet have:
+```
+>>> table = {'Holy Grail':          '1975',    # Key=>Value (title=>year)
+...          'Life of Brian':       '1979',
+...          'The Meaning of Life': '1983'}
+>>> table['Holy Grail']
+'1975'
+
+>>> list(table.items())                        # Value=>Key (year=>title)
+[('The Meaning of Life', '1983'), ('Holy Grail', '1975'), ('Life of Brian', '1979')]
+>>> [title for (title, year) in table.items() if year == '1975']
+['Holy Grail']
 ```
 
 ### Tuples, Files, and Everything Else
@@ -101,6 +141,14 @@ Operation | Interpretation
 `()` | An empty tuple
 `T = (0,)` | A one-item tuple
 `T = (0, 'Ni', 1.2, 3)` | A four-item tuple
+
+##### Tuples in Action
+###### Conversions, methods, and immutability
+```
+>>> T = (1, 2, 3, 2, 4, 2)    # Tuple methods in 2.6, 3.0, and later
+>>> T.index(2)                # Offset of first appearance of 2
+1
+```
 
 #### Files
 You may already be familiar with the notion of files, which are named storage compartments on your computer that are managed by your operating system. The last major built-in type that we'll examine on our object types tour provides a way to access those files inside Python programs.
@@ -136,14 +184,48 @@ Let's work through a simple example that demonstrates file-processing basics. Th
 ```
 This example writes each line of text, including its end-of-line terminator, `\n` , as a string; write methods don't add the end-of-line character for us, so we must include it to properly terminate our lines (otherwise the next write will simply extend the current line in the file).
 
-## Functions
+## Numeric Types
+### Python Expression Operators
+#### Mixed types are converted up
+You can force the issue by calling built-in functions to convert types manually:
+```
+>>> int(3.1415)    # Truncates float to integer
+3
+>>> float(3)       # Converts integer to float
+3.0
+```
+
+### Numbers in Action
+#### Division: Classic, Floor, and True
+
+- `X / Y`
+  - In Python 2.X, this operator performs *classic* division, truncating results for integers, and keeping remainders (i.e., fractional parts) for floating-point numbers.
+
+- `X // Y`
+  - *Floor* division. Added in Python 2.2 and available in both Python 2.X and 3.X, this operator always truncates fractional remainders down to their floor, regardless of types.
+
+```
+C:\code> C:\Python27\python
+>>>
+>>> 10 / 4            # This might break on porting to 3.X!
+2
+>>> 10 / 4.0
+2.5
+>>> 10 // 4           # Use this in 2.X if truncation needed
+2
+>>> 10 // 4.0
+2.0
+```
+
+## Functions and Generators
 ### Scopes
-#### Scope Rules
+#### Python Scope Basics
+##### Scope Details
 functions define a *local scope*, and modules define a *global scope*. The two scopes are related as follows:
 - **The enclosing module is a global scope.** 
 - **Each call to a function creates a new local scope.**
 
-#### Name Resolution: The LEGB Rule
+##### Name Resolution: The LEGB Rule
 
 ```
 --------------------------------------------------------------------------------
@@ -195,6 +277,42 @@ __doc__ = None
 {'x': 1, 'self': <__main__.MyClass instance at 0x10186bbd8>, 'arg': 'bar'}
 ```
 
+#### The global Statement
+The `global` statement tells Python that a function plans to change one or more global names - that is, names that live in the enclosing module's scope (namespace).
+
+In other words, `global` allows us to *change* names that live outside a `def` at the top level of a module file.
+
+The `global` statement consists of the keyword `global`, followed by one or more names separated by commas. All the listed names will be mapped to the enclosing module's scope when assigned or referenced within the function body. For instance:
+```
+X = 88             # Global X
+def func():
+    global X
+    X = 99         # Global X: outside def
+
+func()
+print(X)           # Prints 99
+```
+We've added a `global` declaration to the example here, such that the `X` inside the `def` now refers to the `X` outside the `def`; they are the same variable this time, so changing `X` inside the function changes the `X` outside it.
+
+### Arguments
+#### Argument-Passing Basics
+##### Arguments and Shared Reference
+```
+def changer(a, b):
+    a = 2
+    b[0] = 'spam'
+
+>>> X = 1
+>>> L = [1, 2]
+>>> changer(X, L)
+>>> X, L
+(1, ['spam', 2])
+```
+These two assignments within the function are only slightly different in syntax but have radically different results:
+
+- Because `a` is a local variable name in the function's scope, the first assignment has no effect on the caller - it simply changes the local variable `a` to reference a completely different object, and does not change the binding of the name `X` in the caller's scope. This is the same as in the prior example.
+- Argument `b` is a local variable name, too, but it is passed a mutable object (the list that `L` references in the caller's scope). As the second assignment is an in-place object change (`b[0] = 'spam'` instead of `b = ['spam', 2]`) the result of the assignment to `b[0]` in the function impacts the value of `L` after the functions returns.
+
 ## Statements and Syntax
 ### while and for Loops
 #### Loop Coding Techniques
@@ -204,8 +322,11 @@ Our first loop-related function, `range`, is really a general tools that can be 
 >>> range(5), range(2,5)
 ([0, 1, 2, 3, 4], [2, 3, 4])
 ```
-With one argument, `range` generates a list of integers from zero up to but not including
-the argument's value. If you pass in two arguments, the first is taken as the lower bound.
+With one argument, `range` generates a list of integers from zero up to but not including the argument's value. If you pass in two arguments, the first is taken as the lower bound. Ranges can also be nonpositive and nonascending, if you want them to be:
+```
+>>> list(range(−5, 5))
+[−5, −4, −3, −2, −1, 0, 1, 2, 3, 4]
+```
 
 ## Functions and Generators
 ### Advanced Function Topics

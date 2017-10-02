@@ -409,5 +409,6 @@ Django's primary deployment platform is WSGI, the Python standard for web server
 
 > Currently, our "Hello World" project runs through the `runserver` command. This is a simple server based on the socket server in the standard library. It has helpful utilities for local development such as auto–code reloading. While it is convenient for local development, `runserver` is not appropriate for production deployment security.
 > 
-> The Web Server Gateway Interface (WSGI) is the specification for how web servers communicate with application frameworks such as Django, and was defined by PEP 333 and improved in PEP 3333. There are numerous choices for web servers that speak
-WSGI, including Apache via mod_wsgi, Gunicorn, uWSGI, CherryPy, Tornado, and Chaussette.
+> The Web Server Gateway Interface (WSGI) is the specification for how web servers communicate with application frameworks such as Django, and was defined by PEP 333 and improved in PEP 3333. There are numerous choices for web servers that speak WSGI, including Apache via mod_wsgi, Gunicorn, uWSGI, CherryPy, Tornado, and Chaussette.
+>
+> the web client <-> the web server <-> the socket <-> uwsgi <-> Django

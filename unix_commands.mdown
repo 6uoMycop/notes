@@ -172,3 +172,13 @@ dpkg-query is a tool to show information about packages listed in the dpkg datab
 ```
 echo "ubuntu" | sudo -S apt-get update
 ```
+### trickle
+#### SYNOPSIS
+```
+trickle [-u rate] command ...
+```
+#### DESCRIPTION
+trickle is a userspace bandwidth manager.
+
+The options are as follows:
+- `-u rate` Limit the upload bandwidth consumption to rate KB/s.

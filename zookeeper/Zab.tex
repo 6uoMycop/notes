@@ -148,6 +148,10 @@ Step $f$.3.2: Follower $f$ accepts proposals from $\ell$ following reception ord
 
 Step $f$.3.2: Follower f commits a transaction $\langle v,z \rangle$ by invoking $abdeliver \langle v,z \rangle$ once it receives $COMMIT(e',\langle v,z \rangle)$ and it has committed all transactions $\langle v',z' \rangle$ such that $\langle v', z' \rangle \in h_f, z' \preceq_{z} z$.
 
+\section{Implementation} \label{sec:impl}
+
+As mentioned in Section 2.2, TCP connections are used to implement the bidirectional channels between peers in the ensemble. The FIFO order that TCP communication satisfies is crucial for the correctness of the broadcast protocol.
+
 \bibliographystyle{abbrv}
 \bibliography{biblio}
 
