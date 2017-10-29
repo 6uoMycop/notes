@@ -327,6 +327,31 @@ With one argument, `range` generates a list of integers from zero up to but not 
 >>> list(range(−5, 5))
 [−5, −4, −3, −2, −1, 0, 1, 2, 3, 4]
 ```
+##### Generating Both Offsets and Items: enumerate
+In some programs, though, we need both: the item to use, plus an offset as we go. Traditionally, this was coded with a simple for loop that also kept a counter of the current offset:
+```
+>>> S = 'spam'
+>>> offset = 0
+>>> for item in S:
+...     print(item, 'appears at offset', offset)
+...     offset += 1
+...
+s appears at offset 0
+p appears at offset 1
+a appears at offset 2
+m appears at offset 3
+```
+This works, but in all recent Python 2.X and 3.X releases (since 2.3) a new built-in named `enumerate` does the job for us - its net effect is to give loops a counter "for free," without sacrificing the simplicity of automatic iteration:
+```
+>>> S = 'spam'
+>>> for (offset, item) in enumerate(S):
+...     print(item, 'appears at offset', offset)
+...
+s appears at offset 0
+p appears at offset 1
+a appears at offset 2
+m appears at offset 3
+```
 
 ## Functions and Generators
 ### Advanced Function Topics
