@@ -42,6 +42,41 @@ matrix.tolist()
 
 ## Routines
 ### Array creation routines
+#### Ones and zeros
+
+```Python
+    """
+    Examples
+    --------
+    >>> np.zeros(5)
+    array([ 0.,  0.,  0.,  0.,  0.])
+    >>> np.zeros((2, 1))
+    array([[ 0.],
+           [ 0.]])
+    >>> s = (2,2)
+    >>> np.zeros(s)
+    array([[ 0.,  0.],
+           [ 0.,  0.]])
+    """
+```
+
+```Python
+def full(shape, fill_value, dtype=None, order='C'):
+    """
+    Return a new array of given shape and type, filled with `fill_value`.
+
+    Examples
+    --------
+    >>> np.full((2, 2), np.inf)
+    array([[ inf,  inf],
+           [ inf,  inf]])
+    >>> np.full((2, 2), 10)
+    array([[10, 10],
+           [10, 10]])
+
+    """
+```
+
 #### From existing data
 
 ```Python
@@ -97,6 +132,64 @@ numpy.concatenate((a1, a2, ...), axis=0)
     >>> np.concatenate((a, b.T), axis=1)
     array([[1, 2, 5],
            [3, 4, 6]])
+
+    """
+```
+
+```Python
+def vstack(tup):
+    """
+    Stack arrays in sequence vertically (row wise).
+
+    Take a sequence of arrays and stack them vertically to make a single
+    array.
+
+    Notes
+    -----
+    Equivalent to ``np.concatenate(tup, axis=0)`` if `tup` contains arrays that
+    are at least 2-dimensional.
+
+    Examples
+    --------
+    >>> a = np.array([1, 2, 3])
+    >>> b = np.array([2, 3, 4])
+    >>> np.vstack((a,b))
+    array([[1, 2, 3],
+           [2, 3, 4]])
+
+    """
+```
+
+#### Adding and removing elements
+```Python
+def unique(ar, return_index=False, return_inverse=False,
+           return_counts=False, axis=None):
+    """
+    Find the unique elements of an array.
+
+    Returns the sorted unique elements of an array. There are three optional
+    outputs in addition to the unique elements: the indices of the input array
+    that give the unique values, the indices of the unique array that
+    reconstruct the input array, and the number of times each unique value
+    comes up in the input array.
+
+    Parameters
+    ----------
+    return_counts : bool, optional
+        If True, also return the number of times each unique item appears
+        in `ar`.
+        .. versionadded:: 1.9.0
+
+
+
+    Returns
+    -------
+    unique : ndarray
+        The sorted unique values.
+    unique_counts : ndarray, optional
+        The number of times each of the unique values comes up in the
+        original array. Only provided if `return_counts` is True.
+        .. versionadded:: 1.9.0
 
     """
 ```
@@ -171,6 +264,25 @@ def svd(a, full_matrices=1, compute_uv=1):
     >>> S = np.diag(s)
     >>> np.allclose(a, np.dot(U, np.dot(S, V)))
     True
+
+    """
+```
+
+### Statistics
+#### Order statistics
+```Python
+def amax(a, axis=None, out=None, keepdims=np._NoValue):
+    """
+    Return the maximum of an array or maximum along an axis.
+
+    Examples
+    --------
+    >>> a = np.arange(4).reshape((2,2))
+    >>> a
+    array([[0, 1],
+           [2, 3]])
+    >>> np.amax(a)           # Maximum of the flattened array
+    3
 
     """
 ```
