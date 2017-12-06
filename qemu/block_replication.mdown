@@ -156,6 +156,10 @@ Secondary:
   ```
   - active disk data is written back to the hidden disk, and then hidden disk data is written back to the secondary disk
 
+> It is better to put active disk and hidden disk in ramdisk.
+>
+> `$ sudo mount -t tmpfs -o size=2048M tmpfs /mnt/mytmpfs; qemu-img create -f qcow2 /mnt/mytmpfs/active_disk.img 8G; sudo qemu-img create -f qcow2 /mnt/mytmpfs/hidden_disk.img 8G`
+
 ## Remus Disk Buffering
 - All writes to active VM’s disk are write througth
    - Immediately applied to primary disk
