@@ -1,0 +1,68 @@
+# Benchmarking and Stress Testing an Hadoop Cluster With TeraSort, TestDFSIO & Co.
+
+## Overview of Benchmarks and Testing Tools
+The Hadoop distribution comes with a number of benchmarks, which are bundled in `hadoop-*test*.jar` and `hadoop-*examples*.jar`. The four benchmarks we will be looking at in more details are `TestDFSIO`, `nnbench`, `mrbench` (in `hadoop-*test*.jar`) and `TeraGen` / `TeraSort` / `TeraValidate` (in `hadoop-*examples*.jar`).
+
+Here is the full list of available options in `hadoop-*test*.jar`:
+
+```
+# change to your Hadoop installation directory;
+# if you followed my Hadoop tutorials, this is /usr/local/hadoop
+$ cd /usr/local/hadoop
+
+$ bin/hadoop jar hadoop-*test*.jar
+An example program must be given as the first argument.
+Valid program names are:
+  DFSCIOTest: Distributed i/o benchmark of libhdfs.
+  DistributedFSCheck: Distributed checkup of the file system consistency.
+  MRReliabilityTest: A program that tests the reliability of the MR framework by injecting faults/failures
+  TestDFSIO: Distributed i/o benchmark.
+  dfsthroughput: measure hdfs throughput
+  filebench: Benchmark SequenceFile(Input|Output)Format (block,record compressed and uncompressed), Text(Input|Output)Format (compressed and uncompressed)
+  loadgen: Generic map/reduce load generator
+  mapredtest: A map/reduce test check.
+  mrbench: A map/reduce benchmark that can create many small jobs
+  nnbench: A benchmark that stresses the namenode.
+  testarrayfile: A test for flat files of binary key/value pairs.
+  testbigmapoutput: A map/reduce program that works on a very big non-splittable file and does identity map/reduce
+  testfilesystem: A test for FileSystem read/write.
+  testipc: A test for ipc.
+  testmapredsort: A map/reduce program that validates the map-reduce framework's sort.
+  testrpc: A test for rpc.
+  testsequencefile: A test for flat files of binary key value pairs.
+  testsequencefileinputformat: A test for sequence file input format.
+  testsetfile: A test for flat files of binary key/value pairs.
+  testtextinputformat: A test for text input format.
+  threadedmapbench: A map/reduce benchmark that compares the performance of maps with multiple spills over maps with 1 spill
+```
+
+## TestDFSIO
+The TestDFSIO benchmark is a read and write test for HDFS. It is helpful for tasks such as stress testing HDFS, to discover performance bottlenecks in your network, to shake out the hardware, OS and Hadoop setup of your cluster machines (particularly the NameNode and the DataNodes) and to give you a first impression of how fast your cluster is in terms of I/O.
+
+### Preliminaries
+
+#### 1. The default output directory is /benchmarks/TestDFSIO
+When a write test is run via `-write`, the TestDFSIO benchmark writes its files to `/benchmarks/TestDFSIO` on HDFS. Files from older write runs are overwritten. If you want to preserve the output files of previous runs, you have to copy/move these files manually to a new HDFS location. Benchmark results are saved in a local file called `TestDFSIO_results.log` in the current local directory (results are appended if the file already exists) and also printed to STDOUT.
+
+#### 2. Run write tests before read tests
+
+The read test of TestDFSIO does not generate its own input files. For this reason, it is a convenient practice to first run a write test via `-write` and then follow-up with a read test via `-read` (while using the same parameters as during the previous `-write` run).
+
+### Run a write test (as input data for the subsequent read test)
+The command to run a write test that generates 10 output files of size 1GB for a total of 10GB is:
+```
+$ hadoop jar hadoop-*test*.jar TestDFSIO -write -nrFiles 10 -fileSize 1000
+```
+
+### Run a read test
+The command to run the corresponding read test using 10 input files of size 1GB is:
+```
+$ hadoop jar hadoop-*test*.jar TestDFSIO -read -nrFiles 10 -fileSize 1000
+```
+
+### Clean up and remove test data
+The command to remove previous test data is:
+```
+$ hadoop jar hadoop-*test*.jar TestDFSIO -clean
+```
+The cleaning run will delete the output directory `/benchmarks/TestDFSIO` on HDFS.

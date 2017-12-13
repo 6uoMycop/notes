@@ -1,0 +1,31 @@
+Even though the speedometer in my car maxes out at 150 MPH, I rarely drive at that speed (and the top end may be more optimistic than realistic), but it is certainly nice to have the option to do so when the time and the circumstances are right. Most of the time I am using just a fraction of the power that is available to me.
+
+Many interesting compute workloads follow a similar pattern, with modest demands for continuous compute power and occasional needs for a lot more. Examples of this type of workload include remote desktops, development environments (including build servers), low traffic web sites, and small databases. In many of these cases, long periods of low CPU utilization are punctuated by bursts of full-throttle, pedal to the floor processing that can consume an entire CPU core. Many of these workloads are cost-sensitive as well. Organizations often deploy hundreds or thousands of remote desktops and build environments at a time; saving some money on each deployment can have a significant difference in the overall cost. For low traffic web sites and experiments, the ability to be lean-and-mean can have a profound effect on the overall economic model and potential profitability.
+
+**New T2 Instances**
+
+The T2 instances are built around a processing allocation model that provides you a generous, assured baseline amount of processing power coupled with the ability to automatically and transparently scale up to a full core when you need more compute power. Your ability to burst is based on the concept of "CPU Credits" that you accumulate during quiet periods and spend when things get busy. You can provision an instance of modest size and cost and still have more than adequate compute power in reserve to handle peak demands for compute power.
+
+If your workload fits into one of the categories that I mentioned above, the T2 instances will provide you with more than ample performance at a very compelling price point.
+
+Name | vCPUs | Baseline Performance | RAM (GiB) | CPU Credits / Hour | Price / Hour (Linux) | Price / Month (Linux)
+------------ | ------------- | ------------- | ------------- | ------------- | ------------- | ------------- 
+**t2.micro** | 1 | 10% | 1.0 | 6 | $0.013 | $9.50
+**t2.small** | 1 | 20% | 2.0 | 12 | $0.026 | $19.00
+**t2.medium** | 2 | 40% | 4.0 | 24 | $0.052 | $38.00
+
+The column labeled "Baseline Performance" indicates the percentage of single core performance of the underlying physical CPU allocated to the instance. For example, a **t2.small** instance has access to 20% of a single core of an Intel Xeon processor running at 2.5 GHz (up to 3.3 GHz in Turbo mode). A **t2.medium** has access to 40% of the performance of a single core, which you (or your operating system, to be a bit more precise) can use on one or both cores as dictated by demand.
+
+The column labeled "CPU Credits / Hour" indicates the rate of CPU Credits that the T2 instance receives each hour. CPU Credits accumulate when the instance doesn’t use its baseline allocation of CPU, and are spent when the instance is active. Unused CPU Credits are stored for up to 24 hours. 
+
+**CPU Credits**
+
+As listed in the table above, each **T2** instance receives CPU Credits at a rate that is determined by the size of the instance. A CPU Credit provides the performance of a full CPU core for one minute.
+
+For example, a **t2.micro** instance receives credits continuously at a rate of 6 CPU Credits per hour. This capability provides baseline performance equivalent to 10% of a CPU core. If at any moment the instance does not need the credits it receives, it stores them in its CPU Credit balance for up to 24 hours. If your instance doesn’t use its baseline CPU for 10 hours (let's say), the **t2.micro** instance will have accumulated enough credits to run for almost an hour with full core performance (10 hours * 6 CPU Credits / hour = 60 CPU Credits).
+
+Let's say that you have a business process that needs a burst of CPU power at the beginning and end of the business day in each time zone in your geographic region. By putting this process on a T2 instance, you can handle the compute load at peak times expeditiously and cost-effectively using the CPU Credits that were accumulated during the non-peak times.
+
+As another example, consider a dynamic web site that occasionally enjoys sudden, unpredictable bursts of popularity in response to external news items or inclement weather. Again, hosting the site on a T2 results in a cost-effective solution that includes plenty of capacity to handle these bursts.
+
+When an instance starts to run low on CPU Credits, its performance will gradually return to the baseline level (10% to 40% of a single core, as listed in the table above). This deceleration process takes place over the course of a 15 minute interval in order to provide a smooth and pleasant experience for your users.
