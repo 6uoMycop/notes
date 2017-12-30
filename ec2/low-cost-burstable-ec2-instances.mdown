@@ -16,13 +16,13 @@ Name | vCPUs | Baseline Performance | RAM (GiB) | CPU Credits / Hour | Price / H
 
 The column labeled "Baseline Performance" indicates the percentage of single core performance of the underlying physical CPU allocated to the instance. For example, a **t2.small** instance has access to 20% of a single core of an Intel Xeon processor running at 2.5 GHz (up to 3.3 GHz in Turbo mode). A **t2.medium** has access to 40% of the performance of a single core, which you (or your operating system, to be a bit more precise) can use on one or both cores as dictated by demand.
 
-The column labeled "CPU Credits / Hour" indicates the rate of CPU Credits that the T2 instance receives each hour. CPU Credits accumulate when the instance doesn’t use its baseline allocation of CPU, and are spent when the instance is active. Unused CPU Credits are stored for up to 24 hours. 
+The column labeled "CPU Credits / Hour" indicates the rate of CPU Credits that the T2 instance receives each hour. CPU Credits accumulate when the instance doesn't use its baseline allocation of CPU, and are spent when the instance is active. Unused CPU Credits are stored for up to 24 hours. 
 
 **CPU Credits**
 
 As listed in the table above, each **T2** instance receives CPU Credits at a rate that is determined by the size of the instance. A CPU Credit provides the performance of a full CPU core for one minute.
 
-For example, a **t2.micro** instance receives credits continuously at a rate of 6 CPU Credits per hour. This capability provides baseline performance equivalent to 10% of a CPU core. If at any moment the instance does not need the credits it receives, it stores them in its CPU Credit balance for up to 24 hours. If your instance doesn’t use its baseline CPU for 10 hours (let's say), the **t2.micro** instance will have accumulated enough credits to run for almost an hour with full core performance (10 hours * 6 CPU Credits / hour = 60 CPU Credits).
+For example, a **t2.micro** instance receives credits continuously at a rate of 6 CPU Credits per hour. This capability provides baseline performance equivalent to 10% of a CPU core. If at any moment the instance does not need the credits it receives, it stores them in its CPU Credit balance for up to 24 hours. If your instance doesn't use its baseline CPU for 10 hours (let's say), the **t2.micro** instance will have accumulated enough credits to run for almost an hour with full core performance (10 hours * 6 CPU Credits / hour = 60 CPU Credits).
 
 Let's say that you have a business process that needs a burst of CPU power at the beginning and end of the business day in each time zone in your geographic region. By putting this process on a T2 instance, you can handle the compute load at peak times expeditiously and cost-effectively using the CPU Credits that were accumulated during the non-peak times.
 

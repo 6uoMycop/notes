@@ -1,0 +1,48 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+
+<title>Changing Default Python on Ubuntu</title>
+    
+    <div class="section">
+      <p class="header2"><b>Setting python 2.6 as default on Linux</b></p>
+
+<p>If you have a later version than 2.6 you'll need to set 2.6 as the default Python. Later versions would be 2.7 and 3.1; see what you have by typing
+<pre>
+python -V
+</pre>
+at the terminal. For purposes of this example we'll assume you have 3.1 installed. You'll next need to execute the following commands:</p>
+
+<pre>
+sudo apt-get install python2.6 idle-python2.6
+sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.1 1
+sudo update-alternatives --install /usr/bin/python python /usr/bin/python2.6 10
+sudo update-alternatives --config python
+</pre>
+
+<p>This last command will allow you to choose which version of python
+to use by default.  If you have done everything above correctly,
+python2.6 should already be set as the default.  If it is not, choose
+it to be the default.  From now on, running python should start version
+2.6.</p>
+
+    <div class="section">
+      <p class="header2">Undoing These Changes</p>
+
+<p>In some cases (e.g., installing or updating certain packages),
+  you'll get an error message if you've run the commands above.  To
+  update these packages, you'll have to temporarily undo these
+  changes.  Here's how to do that:</p>
+
+<pre>
+sudo update-alternatives --remove-all python
+sudo ln -s python3.1 /usr/bin/python
+</pre>
+
+<p>Once you're done updating these packages, execute the commands at
+  the top to set python2.6 as the default again.</p>
+
+</body>
+</html>

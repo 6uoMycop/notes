@@ -1,0 +1,4 @@
+## Affinities
+- taskset command
+   - sudo taskset -c 4 33187 # pid 33187 runs on core 4
+   - sudo taskset -c 0,2,3 ./a.out
