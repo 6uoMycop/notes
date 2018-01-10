@@ -66,3 +66,46 @@ The command to remove previous test data is:
 $ hadoop jar hadoop-*test*.jar TestDFSIO -clean
 ```
 The cleaning run will delete the output directory `/benchmarks/TestDFSIO` on HDFS.
+
+## TeraSort benchmark suite
+Basically, the goal of TeraSort is to sort 1TB of data (or any other amount of data you want) as fast as possible. It is a benchmark that combines testing the HDFS and MapReduce layers of an Hadoop cluster.
+
+A full TeraSort benchmark run consists of the following three steps:
+
+1. Generating the input data via `TeraGen`.
+2. Running the actual `TeraSort` on the input data.
+3. Validating the sorted output data via `TeraValidate`.
+
+### TeraGen: Generate the TeraSort input data (if needed)
+`TeraGen` (source code) generates random data that can be conveniently used as input data for a subsequent TeraSort run.
+
+The syntax for running TeraGen is as follows:
+```
+$ hadoop jar hadoop-*examples*.jar teragen <number of 100-byte rows> <output dir>
+```
+Using the HDFS output directory `/user/hduser/terasort-input` as an example, the command to run TeraGen in order to generate 1TB of input data (i.e. 1,000,000,000,000 bytes) is:
+```
+$ hadoop jar hadoop-*examples*.jar teragen 10000000000 /user/hduser/terasort-input
+```
+
+### TeraSort: Run the actual TeraSort benchmark
+The syntax to run the TeraSort benchmark is as follows:
+```
+$ hadoop jar hadoop-*examples*.jar terasort <input dir> <output dir>
+```
+Using the input directory `/user/hduser/terasort-input` and the output directory `/user/hduser/terasort-output` as an example, the command to run the TeraSort benchmark is:
+```
+$ hadoop jar hadoop-*examples*.jar terasort /user/hduser/terasort-input /user/hduser/terasort-output
+```
+
+### TeraValidate: Validate the sorted output data of TeraSort
+`TeraValidate` ensures that the output data of `TeraSort` is globally sorted.
+
+The syntax to run the TeraValidate test is as follows:
+```
+$ hadoop jar hadoop-*examples*.jar teravalidate <terasort output dir (= input data)> <teravalidate output dir>
+```
+Using the output directory `/user/hduser/terasort-output` from the previous sections and the report (output) directory `/user/hduser/terasort-validate` as an example, the command to run the TeraValidate test is:
+```
+$ hadoop jar hadoop-*examples*.jar teravalidate /user/hduser/terasort-output /user/hduser/terasort-validate
+```
