@@ -1,4 +1,4 @@
-## File I/O
+## Chapter 2. File I/O
 The kernel maintains a per-process list of open files, called the *file table*. This table is indexed via nonnegative integers known as *file descriptors*, Each entry in the list contains information about an open file, including a pointer to an in-memory copy of the file's backing inode and associated metadata, such as the file position and access modes.
 
 By default, a child process receives a copy of its parent's file table. The list of open files and their access modes, current file positions, and so on, are the same, but a change in one process - say, the child closing a file - does not affect the other process' file table. However, it is possible for the child and parent to share the parent's file table.
@@ -161,7 +161,7 @@ Eventually the dirty buffers need to be committed to disk, synchronizing the on-
 
 Writebacks are carried out by a gang of kernel threads named *pdflush* threads (presumably for *page dirty flush*, but who knows). When one of the previous two conditions is met, the pdflush threads wake up, and begin committing dirty buffers to disk until neither condition is true.
 
-## Buffered I/O
+## Chapter 3. Buffered I/O
 ### User-Buffered I/O
 Programs that have to issue many small I/O requests to regular files often perform *user-buffered I/O*. This refers to buffering done in user-space, either manually by the application, or transparently in a library, not to buffering done by the kernel. As discussed in Chapter 2. for reasons of performance, the kernel buffers data internally by delaying writes, coalescing adjacent I/O requests, and reading ahead. Through different means, user buffering also aims to improve performance.
 
@@ -203,7 +203,7 @@ To understand the effect of `fflush()`, you have to understand the difference be
 
 `fflush()` merely writes the user-buffered data out to the kernel buffer. The effect is the same as if user buffering was not employed, and `write()` was used directly. It does not guarantee that the data is physically committed to any medium - for that need, use something like `fsync()`. Most likely, you will want to call `fflush()`, followed immediately by `fsync()`: that is, first ensure the user buffer is written out to the kernel, and then ensure that the kernel's buffer is written out to disk.
 
-## Advanced File I/O
+## Chapter 4. Advanced File I/O
 ### Mapping Files into Memory
 As an alternative to standard file I/O, the kernel provides an interface that allows an application to map a file into memory, meaning that there is a one-to-one correspondence between a memory address and a word in the file. The programmers can then access the file directly through memory, identically to any other chunk of memory-resident data - it is even possible to allow writes to the memory region to transparently map back to the file on the disk.
 
@@ -300,6 +300,47 @@ A call to `msync()` flushes back to disk any changes made to a file mapped via `
 
 Without invocation of `msync()`, there is no guarantee that a dirty mapping will be written back to disk until the file is unmapped. When writing into a memory mapping, the process directly modifies the file's pages in the kernel's page cache without kernel involvement. The kernel may not synchronize the page cache and the disk anytime soon.
 
+### I/O Schedulers and I/O Performance
+#### The Life of an I/O Scheduler
+I/O schedulers perform two basic operations: merging and sorting. *Merging* is the process of taking two or more adjacent I/O requests and combining them into a single request. Consider two requests, one to read from disk block 5, and another to read from disk blocks 6 through 7. These requests can be merged into a single request to read from disk blocks 5 through 7. The total amount of I/O might be the same, but the number of I/O operations is reduced by half.
+
+*Sorting*, the more important of the two operations, is the process of arranging pending I/O requests in ascending block order. For example, given I/O operations yo blocks 52, 109, and 7, the I/O scheduler would sort these requests into the ordering 7, 52, and 109. If a request was then issued to block 81, it would be inserted between the requests to blocks 52 and 109. The I/O scheduler would then dispatch the requests to the disk in the order that they exist in the queue: 7, then 52, then 81, and finally 109.
+
+In this manner, the disk head's movement are minimized. Instead of potentially haphazard movements - here to there and back, seeking all over the disk - the disk head moves in a smooth, linear fashion. Because seeks are the most expensive part of disk I/O, performance is improved.
+
+#### Helping Out Reads
+If an I/O scheduler *always* sorted new requests by the order of insertion, it would be possible to starve requests to far-off blocks indefinitely. Consider our previous example. If new requests were continually issued to blocks in, say , the 50s, the request to block 109 would never be serviced. Because read latency is critical, this behavior would greatly hurt system performance. Thus, I/O schedulers employ a mechanism to prevent starvation.
+
+**The Deadline I/O Scheduler**
+
+The deadline I/O scheduler was introduced to solve the problems with the 2.4 I/O scheduler and traditional elevator algorithms in general. The Linus Elevator maintains a sorted list of pending I/O requests. The I/O request at the head of the queue is the next one to be serviced. The deadline I/O Scheduler keeps this queue but kicks things up a notch by introducing two additional queues: the *read FIFO queue* and the *write FIFO queue*. The items in each of these queues are sorted by submission submission time (effectively, the first in is the first out). The read FIFO queue, as its name suggests, contains only read requests. The write FIFO queue, likewise, contains only write requests. Each request in the FIFO queues is assigned an expiration value. The read FIFO queue has an expiration time of 500 milliseconds. The write FIFO queue has an expiration time of 5 seconds.
+
+When a new I/O request is submitted, it is insertion-sorted into the standard queue and placed at the tail of its respective (read or write) FIFO queue. Normally, the hard drive is sent I/O requests from the head of the standard sorted queue. This maximizes global throughput by minimizing seeks, as the normal queue is sorted by block number (as with the Linus Elevator).
+
+When the item at the head of one of the FIFO queues grows older than the expiration value associated with its queue, however, the I/O scheduler stops dispatching I/O requests from the standard queue and begins servicing requests from that queue - the request at the head of the FIFO queue is serviced, plus a couple of extras for good measure. The I/O scheduler needs to check and handle only the requests at the head of the queue, as those are the oldest requests.
+
+In this manner, the Deadline I/O Scheduler can enforce a soft deadline on I/O requests. Although it makes no promise that an I/O request will be serviced before its expiration time, the I/O scheduler generally services requests near their expiration times. Thus the Deadline I/O Scheduler continues to provide good global throughput without starving any one request for an unacceptably long time. Because read requests are given shorter expiration times, the writes-starving-reads problem is minimized.
+
+**The Anticipatory I/O Scheduler**
+
+The Deadline I/O Scheduler's behavior is good, but not perfect. Recall our discussion on read dependency. With the Deadline I/O Scheduler, the first read request in a series of reads is serviced in short order, at or before its expiration time, and the I/O scheduler then returns to servicing I/O requests from the sorted queue - so far, so good. But what if the application then swoops in and hits us with another read request? Eventually its expiration time will also approach, and the I/O scheduler will submit it to the disk, which will seek over to promptly handle the request, then seek back to continue handling requests from the sorted queue. This seeking back and forth can continue for some time because many applications exhibit this behavior. While latency is kept to a minimum, global throughput is not very good because the read requests keep coming in, and the disk has to keep seeking back and forth to handle them. Performance would be improved if the disk just took a break to wait for another read and did not move away to service the sorted queue again. But, unfortunately, by the time the application is scheduled and submits its next dependent read request, the I/O scheduler has already shifted gears.
+
+The problem again stems from those darn dependent reads. Each new read request is issued only when the previous one is returned, but by the time the application receives the read data, is scheduled to run, and submits its next read request, the I/O scheduler has moved on and begun servicing other requests. This results in a wasted pair of seeks for each read: the disk seeks to the read, services it, and then seeks back. If only there was some way for the I/O scheduler to know - to anticipate - that another read would soon be submitted to the same part of the disk, instead of seeking back and forth, it could wait in anticipation of the next read. Saving those awful seeks certainly would be worth a few milliseconds of waiting.
+
+This is exactly how the Anticipatory I/O Scheduler operates. It began life as the Deadline I/O Scheduler but was gifted with the addition of an anticipation mechanism. When a read request is submitted, the Anticipatory I/O Scheduler services it within its deadline, as usual. Unlike the Deadline I/O Scheduler, however, the Anticipatory I/O Scheduler then sits and waits, doing nothing, for up to 6 milliseconds. Chances are good that the application will issue another read to the same part of the filesystem during those six milliseconds. If so, that request is serviced immediately, and the Anticipatory I/O Scheduler waits some more. If 6 milliseconds go by without a read request, the Anticipatory I/O Scheduler decides it has guessed wrong and returns to whatever it was doing before (i.e., servicing the standard sorted queue). If even a moderate number of requests are anticipated correctly, a great deal of time - two expensive seeks' worth at each go - is saved. Because most reads are dependent, the anticipation pays off much of the time.
+
+> In this case, the request queue is plugged, the I/O scheduler sets a timer, and no more requests are passed down to the drive for a millisecond or so.
+
+**The CFQ I/O Scheduler**
+
+The Completely Fair Queuing (CFQ) I/O Scheduler works to achieve similar goals, albeit via a different approach. With CFQ, each process is assigned its own queue, and each queue is assigned timeslice. The I/O scheduler visits each queue in a round-robin fashion, servicing requests from the queue until the queue's timeslice is exhausted, or until no more requests remain. In the latter case, the CFQ I/O Scheduler will then idle for a brief period - by default, 10ms - waiting for a new request on the queue. If the anticipation pays off, the I/O scheduler avoids seeking. If not, the waiting was in vain, and the scheduler moves on to the next process's queue.
+
+Within each process's queue, synchronized requests (such as reads) are given priority over nonsynchronized requests. In this manner, CFQ favors reads and prevents the writes-starving problem. Due to the per-process queue setup, the CFQ I/O Scheduler is fair to all processes while still providing good global performance.
+
+> Solid-state drives (SSDs) such as flash drives grow more popular each year. Whole classes of devices, such as mobile phones and tablets, have no rotational storage devices; everything is flash. SSDs such as flash drives have significantly lower seek times than classic hard drives, as there is no rotational cost to finding a given block of data. Instead, SSDs are referenced not unlike random-access memory; while it can be more efficient to read large chunks of contiguous data in one fell swoop, there isn't penalty for accessing data elsewhere on the drive.
+>
+> Consequently, the benefits of sorting I/O requests are significantly smaller (if not zero) for solid-state drives and the utility if I/O schedulers is less for such devices. Many systems thus use the Noop I/O Scheduler for solid-state storage, as it provides merging (which is beneficial) but not sorting. Systems, however, that wish to optimize for interactive performance prefer the 
+
 ## Memory Management
 ### The Process Address Space
 Linux, like any modern operating system, virtualizes its physical resource of memory.
@@ -322,7 +363,7 @@ Certain types of memory regions can be found in every process:
 - The stack contains the process's execution stack, which grows and shrinks dynamically as the stack depth increases and decreases. The execution stack contains local variables and function return data. In a multithreaded process, there is one stack per thread.
 - The data segment, or heap, contains a process's dynamic memory. This segment is writable and can grow or shrink in size. `malloc()` can satisfy memory requests from this segment.
 
-### Allocating Dynamic Memory
+### Chapter 9. Allocating Dynamic Memory
 Dynamic memory is allocated at runtime, not compile time, in sizes that may be unknown until the moment of allocation. As a developer, you need dynamic memory when the amount of memory that you will need, or how long you might need it, varies and is not known before the program runs. For example, you might want to store in memory the contents of a file or input read in from the keyboard. Because the size of the file is unknown, and the user may type any number of keystrokes, the size of the buffer will vary, and you may need to make it dynamically larger as you read more and more data.
 
 The classic C interface for obtaining dynamic memory is `malloc()`:
@@ -396,48 +437,3 @@ else
 - The `prot` parameter usually sets both the `PROT_READ` and `PROT_WRITE` bits, making the mapping readable and writable.
 - The `flags` parameter sets the `MAP_ANONYMOUS` bit, making this mapping anonymous, and the `MAP_PRIVATE` bit, making this mapping private.
 - The `fd` and `offset` parameters are ignored when `MAP_ANONYMOUS` is set.
-
-## sysbench
-### fileio
-This test mode can be used to produce various kinds of file I/O workloads. At the `prepare` stage SysBench creates a specified number of files with a specified total size, then at the `run` stage, each thread performs specified I/O operations on this set of files.
-
-The following I/O operations are supported:
-- **seqwr**
-
-  sequential write
-
-- **seqrd**
-
-  sequential read
-
-- **rndrd**
-
-  random read
-
-- **rndwr**
-
-  random write
-
-- **rndrw**
-
-  combined random read/write
-
-Below is a list of test-specific option for the **fileio** mode:
-
-Option | Description | Default value
------------- | ------------- | -------------
---file-num | Number of files to create | 128
---file-block-size | Block size to use in all I/O operations | 16K
---file-total-size | Total size of files | 2G
---file-test-mode | Type of workload to produce. Possible values: seqwr, seqrd, rndrd, rndwr, rndwr | required
---file-extra-flags | Additional flags to use with open(2) | 
---file-fsync-all | Do fsync() after each write operation | no
---file-fsync-end | Do fsync() at the end of the test | yes
---file-fsync-mode | Which method to use for synchronization. Possible values: fsync, fdatasync | fsync
-
-```
-$ sysbench --num-threads=16 --test=fileio --file-total-size=3G --file-test-mode=rndrw --debug=on prepare
-$ sysbench --num-threads=16 --test=fileio --file-total-size=3G --file-test-mode=rndrw --debug=on run
-$ sysbench --num-threads=16 --test=fileio --file-total-size=3G --file-test-mode=rndrw --debug=on cleanup
-```
-In the above example the first command creates 128 files with the total size of 3GB in the current directory, the second command runs the actual benchmark and displays the results upon completion, and the third one removes the files used for the test.
