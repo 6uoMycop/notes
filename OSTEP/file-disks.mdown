@@ -1,4 +1,3 @@
-# Persistence
 ## Hard Disk Drives
 In this chapter, we dive into more detail about one device in particular: the **hard disk drive**. These drives have been the main form of persistent data storage in computer systems for decades and much of the development of file system technology is predicated on their behavior.
 
@@ -260,7 +259,7 @@ Thus, our view of the disk partition where we're building our file system is sim
 
 Let's now think about what we need to store in these blocks to build a file system. Of course, the first thing that comes to mind is user data. In fact, most of the space in any file system is (and should be) user data. Let's call the region of the disk we use for user data the **data region**, again for simplicity, reserve a fixed portion of the disk for these blocks, say the last 56 of 64 blocks on the disk.
 
-the file system has to track information about each file. This information is a key piece of **metadata**, and tracks things like which data blocks (in the data region) comprise a file, the size of the file, its owner and access rights, access and modify times, and other similar kinds of information. To store this information, file systems usually have a structure called an **inode**.
+As we learned about (a little) last chapter, the file system has to track information about each file. This information is a key piece of **metadata**, and tracks things like which data blocks (in the data region) comprise a file, the size of the file, its owner and access rights, access and modify times, and other similar kinds of information. To store this information, file systems usually have a structure called an **inode**.
 
 To accommodate inodes, we'll need to reserve some space on the disk for them as well. Let's call this portion of the disk the **inode table**, which simply holds an array of on-disk inodes.
 
@@ -311,7 +310,7 @@ pointer     : null
 pointer     : null
 pointer     : null
 ```
-In this simplified example, the `size` of the file is ` (it has one block allocated), the first pointer points to block 4 (the first block of the file, Da), and all three other pointers are set to null (indicating they are not used).
+In this simplified example, the `size` of the file is 1 (it has one block allocated), the first pointer points to block 4 (the first block of the file, Da), and all three other pointers are set to null (indicating they are not used).
 
 When we append to the file, we are adding a new data block to it, and must update three on-disk structures: the inode (which must point to the new block as well as have a bigger size due to the append), the new data block Db, and a new version of the data bitmap (call it B[v2]) to indicate that new data block has been allocated.
 
@@ -385,4 +384,4 @@ An important aspect of this process is the atomicity guarantee provided by the d
 - **Journal commit**: Write the transaction commit block (containing TxE) to the log; wait for write to complete; transaction is said to be **committed**.
 - Checkpoint: Write the contents of the update (metadata and data) to their final on-disk locations.
 
-Let’s now understand how a file system can use the contents of the journal to **recover** from a crash. A crash may happen at any time during this sequence of updates. If the crash happens before the transaction is written safely to the log, then our job is easy: the pending update is simply skipped. If the crash happens after the transaction has committed to the log, but before the checkpoint is complete, the file system can **recover** the update as follows. When the system boots, the file system recovery process will scan the log and look for transactions that have committed to the disk; these transactions are thus **replayed** (in order), with the file system again attempting to write out the blocks in the transaction to their final on-disk locations. This form of logging is one of the simplest forms there is, and is called **redo logging**.
+Let's now understand how a file system can use the contents of the journal to **recover** from a crash. A crash may happen at any time during this sequence of updates. If the crash happens before the transaction is written safely to the log, then our job is easy: the pending update is simply skipped. If the crash happens after the transaction has committed to the log, but before the checkpoint is complete, the file system can **recover** the update as follows. When the system boots, the file system recovery process will scan the log and look for transactions that have committed to the disk; these transactions are thus **replayed** (in order), with the file system again attempting to write out the blocks in the transaction to their final on-disk locations. This form of logging is one of the simplest forms there is, and is called **redo logging**.

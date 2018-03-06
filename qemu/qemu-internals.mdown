@@ -1,3 +1,12 @@
+## The event-driven core of QEMU
+An event-driven architecture is centered around the event loop which dispatches events to handler functions. QEMU's main event loop is `main_loop_wait()` and it performs the following tasks:
+
+1. Waits for file descriptors to become readable or writable. File descriptors play a critical role because files, sockets, and various other resources are all file descriptors. File descriptors can be added using `qemu_set_fd_handler()`.
+2. Runs expired timers.
+3. Runs **bottom-halves** (BHs), which are like timers that expire immediately.
+
+When a file descriptor becomes ready, a timer expires, or a BH is scheduled, the event loop invokes a **callback** that responds to the event.
+
 ## Offloading specific tasks to worker threads
 
 Although many I/O operations can be performed in a non-blocking fashion, there are system calls which have no non-blocking equivalent. Furthermore, sometimes long-running computations simply hog the CPU and are difficult to break up into callbacks. In these cases dedicated worker threads can be used to carefully move these tasks out of core QEMU.
