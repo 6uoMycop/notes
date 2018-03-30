@@ -141,6 +141,93 @@ This call writes up to `count` bytes from `buf` to the file descriptor `fd` at f
 
 These calls are almost identical in behavior to their non-`p` brethren, except that they completely ignore the current file position; instead of using the current position, they use the value provided by `pos`.
 
+### Multiplexed I/O
+#### select()
+```c
+#include <sys/select.h>
+
+int select (int n,
+	        fd_set *readfds,
+	        fd_set *writefds,
+	        fd_set *exceptfds,
+	        struct timeval *timeout);
+```
+The watched file descriptors are broken into three sets, each waiting for a different event. File descriptors listed in the `readfds` set are watched to see if data is available for reading.
+
+The first parameter, `n`, is equal to the value of the highest-value descriptor in any set, plus one. Consequently, a caller to `select()` is responsible for checking which given file descriptor is the highest-valued and passing in that value plus one for the first parameter.
+
+On successful return, each set is modified such that it contains only the file descriptors that are ready for I/O of the type delineated by that set. For example, assume two file descriptors, with the value 7 and 9, are placed in the `readfds` set. When the call returns, if 7 is still in the set, that file descriptor is ready to read without blocking. If 9 is no longer in the set, it is probably not readable without blocking. (I say *probably* here because it is possible that the data became available after the call completed. In that case, a subsequent call to `select()` will return the file descriptor as ready to read.)
+
+#### poll()
+The `poll()` system call is System V's multiplexed I/O solution. It solves several deficiencies in `select()`, although `select()` is still often used (most likely out of habit, or in the name of portability):
+```c
+#include <poll.h>
+
+int poll (struct pollfd *fds, nfds_t nfds, int timeout);
+```
+Unlike `select()`, with its inefficient three bit-masked sets of file descriptors, `poll()` employs a single array of `nfds pollfd` structures, pointed to by `fds`. The structure is as follows:
+```c
+#include <poll.h>
+
+struct pollfd{
+	int fd;           /* file descriptor */
+	short events;     /* requested events to watch */
+	short revents;    /* returned events witnessed */
+}
+```
+In addition, the following events may be returned in the `revents` field:
+
+- POLLER
+
+   Error on the given file descriptor
+
+These events have no meaning in the `events` field and you should not pass them in that field because they are always returned if applicable. With `poll()`, unlike `select()`, you need not be explicitly ask for reporting of exceptions.
+
+**poll() example**
+
+Let's look at an example program that uses `poll()` to simultaneously check whether a read from *stdin* and a write to *stdout* will block:
+```c
+#include <stdio.h>
+#include <unistd.h>
+#include <poll.h>
+
+#define TIMEOUT 5
+
+int main(int argc, char const *argv[])
+{
+	struct pollfd fds[2];
+	int ret;
+
+	/* watch stdin for input */
+	fds[0].fd = STDIN_FILENO;
+	fds[0].events = POLLIN;
+
+	/* watch a stdout for ability to write (almost always true) */
+	fds[1].fd = STDOUT_FILENO;
+	fds[1].events = POLLOUT;
+
+	/* All set, block! */
+	ret = poll (fds, 2, TIMEOUT * 1000);
+	if (ret == -1) {
+		perror("poll");
+		return 1;
+	}
+
+	if (!ret) {
+		printf("%d seconds elapsed.\n", TIMEOUT);
+		return 0;
+	}
+
+	if (fds[0].revents & POLLIN)
+		printf("stdin is readable\n");
+
+	if (fds[1].revents & POLLOUT)
+		printf("stdout is writable\n");
+
+	return 0;
+}
+```
+
 ### Kernel Internals
 
 **The Page Cache**
@@ -204,6 +291,30 @@ To understand the effect of `fflush()`, you have to understand the difference be
 `fflush()` merely writes the user-buffered data out to the kernel buffer. The effect is the same as if user buffering was not employed, and `write()` was used directly. It does not guarantee that the data is physically committed to any medium - for that need, use something like `fsync()`. Most likely, you will want to call `fflush()`, followed immediately by `fsync()`: that is, first ensure the user buffer is written out to the kernel, and then ensure that the kernel's buffer is written out to disk.
 
 ## Chapter 4. Advanced File I/O
+### Event Poll
+#### Edge-Versus Level-Triggered Events
+
+If the `EPOLLET` value is set in the `events` field of the `event` parameter passed to `epoll_ctl`, the watch on `fd` is *edge-triggered*, as opposed to *level-triggered*.
+
+Consider the following events between a producer and a consumer communicating over a Unix pipe:
+
+1. The producer writes 1KB of data onto a pipe.
+2. The consumer performs an `epoll_wait()` on the pipe, waiting for the pipe to contain data and thus be readable.
+
+With a level-triggered watch, the call to `epoll_wait()` in step 2 will return immediately, showing that the pipe is ready to read. With an edge-triggered watch, this call will not return until after step 1 occurs. That is, even if the pipe is readable at the invocation of `epoll_wait()`, the call will not return until the data is written onto the pipe.
+
+Level-triggered is the default behavior. It is how `poll()` and `select()` behave, and it is what most developers expect.
+
+> The difference between two mechanisms can be described as follows. Suppose that this scenario happens:
+> 1. The file descriptor that represents the read side of a pipe (rfd) is registered on the epoll instance.
+> 2. A pipe writer writes 2 kB of data on the write side of the pipe.
+> 3. A call to `epoll_wait(2)` is done that will return rfd as a ready file descriptor.
+> 4. The pipe reader reads 1 kB of data from rfd.
+> 5. A call to `epoll_wait(2)` is done.
+>
+> If the rfd file descriptor has been added to the epoll interface using the `EPOLLET` (edge-triggered) flag, the call to `epoll_wait(2)` done in step 5 will probably hang despite the available data still present in the file input buffer; meanwhile the remote peer might be expecting a response based on the data it is already sent. The reason for this is that edge-triggered mode delivers events only when changes occur on the monitored file descriptor. So, in step 5 the caller might end up waiting for some data that is already present inside the input buffer. In the above example, an event on rfd will be generated because of the write done in 2 and the event is consumed in 3. Since the read operation done in 4 does not consume the whole buffer data, the call to `epoll_wait(2)` done in step 5 might block indefinitely.
+
+
 ### Mapping Files into Memory
 As an alternative to standard file I/O, the kernel provides an interface that allows an application to map a file into memory, meaning that there is a one-to-one correspondence between a memory address and a word in the file. The programmers can then access the file directly through memory, identically to any other chunk of memory-resident data - it is even possible to allow writes to the memory region to transparently map back to the file on the disk.
 

@@ -180,7 +180,13 @@ int bind (int sockfd, const struct sockaddr *myaddr, socklen_t addrlen);
 ```
 The second argument is a pointer to a protocol-specific address, and the third argument is the size of size of this address structure.
 
+- Servers bind their well-known port when they start. We saw this in Figure 1.9. If a TCP client or server does not do this, the kernel chooses an ephemeral port for the socket when either `connect` or `listen` is called. It is normal for a TCP client to let the kernel choose an ephemeral port, unless the application requires a reserved port (Figure 2.10), but it is rare for a TCP server to let the kernel choose an ephemeral port, since servers are known by their well-known port.
+
+   Exceptions to this rule are Remote Procedure Call (RPC) servers. They normally let the kernel choose an ephemeral port for their listening socket since this port is then registered with the RPC port mapper. Clients have to contact the port mapper to obtain the ephemeral port before they can `connect` to the server. This also applies to RPC servers using UDP.
+
 - A process can `bind` a specific IP address to its socket. The IP address must belong to an interface on the host.
+
+If we specify a port number of 0, the kernel chooses an ephemeral port when `bind` is called.
 
 #### `listen` function
 The `listen` function is called only by a TCP server and it performs two actions:

@@ -1,6 +1,0 @@
-# Cluster Manager Types
-The system currently supports three cluster managers:
-
-- Standalone – a simple cluster manager included with Spark that makes it easy to set up a cluster.
-- Apache Mesos – a general cluster manager that can also run Hadoop MapReduce and service applications.
-- Hadoop YARN – the resource manager in Hadoop 2.

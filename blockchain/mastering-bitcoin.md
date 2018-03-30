@@ -1,5 +1,13 @@
 # Mastering Bitcoin
 
+## Preface
+### Quick Glossary
+This quick glossary contains many of the terms used in relation to bitcoin. These terms are used throughout the book, so bookmark this for a quick reference.
+
+- *address*
+
+  A bitcoin address looks like `1DSrfJdB2AnWaFNgSbv3MZC2m74996JafV`. It consists of a string of letters and numbers. It's really an encoded base58check version of public key 160-bit hash. Just like you ask others to send an email to your email address, you would ask others to send you bitcoin to one of your bitcoin addresses.
+
 ## The Blockchain
 ### Introduction
 
@@ -10,6 +18,24 @@ Each block within the blockchain is identified by a hash, generated using the SH
 Although a block has just one parent, it can temporarily have multiple children. Each of the children refers to the same block as its parent and contains the same (parent) hash in the "previous block hash" field. Multiple children arise during a blockchain "fork", a temporary situation that occurs when different blocks are discovered almost simultaneously by different miners (see "Blockchain Forks" on page 240). Eventually, only one child block becomes part of the blockchain the "fork" is resolved. Even though a block may have more than one child, each block can have only one parent. THis is because a block has one single "previous block hash" field referencing its single parent.
 
 The "previous block hash" field is inside the block header and thereby affects the *current* block's hash. The child's own identity changes if the parent's identity changes. When the parent is modified in any way, the parent's hash changes. The parent's changed hash necessitates a change in the "previous block hash" pointer of the child. This in turn causes the child's hash to change, which requires a change in the pointer of the grandchild, which in turn changes the grandchild, and so on. This cascade effect ensures that a block has many generations following it, it cannot be changed without forcing a recalculation of all subsequent blocks. Because such a recalculation would require enormous computation (and therefore energy consumption), the existence of a long chain of blocks makes the blockchain's deep history immutable, which is a key feature of bitcoin's security.
+
+## Keys, Addresses
+### Introduction
+#### Public Key Cryptography and Cryptocurrency
+There is a mathematical relationship between the public and the private key that all allows the private key to be used to generate signatures on messages. This signature can be validated against the public key without revealing the private key.
+
+When spending bitcoin, the current bitcoin owner presents her public key and a signature (different each time, but created from the same private key) in a transaction to spend those bitcoin. Through the presentation of the public key and signature, everyone in the bitcoin network can verify and accept the transaction as valid, confirming that the person transferring the bitcoin owned them at the time of the transfer.
+
+#### Private and Public Keys
+The relationship between private key, public key, and bitcoin address is shown in Figure 4-1.
+
+```
+
+              Elliptic Curve Multiplication             Hashing Function
+     k      --------------------------------->   K  --------------------------> A
+                       (One-Way)                           (One-Way)
+private key                                  Public Key                 Bitcoin Address
+```
 
 ## Mining and Consensus
 ### Introduction

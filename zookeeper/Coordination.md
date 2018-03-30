@@ -1,4 +1,10 @@
 # ZooKeeper: Distributed Process Coordination
+
+## The C client
+### Setting Up the Development Environment
+
+In the directory where you unpacked the ZooKeeper distribution, there is a file called *build.xml*. This file has the instructions required for *ant* to build everything.
+
 ## ZooKeeper Internals
 ### Zab: Broadcasting State Updates
 Upon receiving a write request, a follower forwards it to the leader. The leader executes the request speculatively and broadcasts the result of the execution as a state update, in the form of a transaction. A transaction comprises the exact set of changes that a server must apply to the data tree when the transaction is committed. The data tree is the data structure holding the ZooKeeper state (see `DataTree`).
@@ -44,3 +50,5 @@ This snapshot contains `/z = 1` and `/z' = 2`. However, there has never been a p
    A "yes" or "no" option that controls whether data should be synced to storage (`zookeeper.forceSync`).
 
    By default, and when `forceSync` is set to `yes`, transactions will not be acknowledged until they have been synced to storage. The sync system call is expensive and is the cause of one of the biggest delays in transaction processing. If `forceSync` is set to `no`, transactions will be acknowledged as soon as they have been written to the operating system, which usually caches them in memory before writing them to disk. Setting `forceSync` to `no` will yield an increase in performance at the cost of recoverability in the case of a server crash or power outage.
+
+##

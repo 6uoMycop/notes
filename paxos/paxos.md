@@ -160,7 +160,12 @@ A backup only logs a request after logging all previous operations, and only ack
 When sending an AppendEntries RPC, the leader includes the index and term of the entry in its log that immediately precedes the new entries. If the follower does not find an entry in its log with the same index and term, then it refuses the new entries.
 
 ## Paxos Made Practical
-### Normal Case Operation
+### The setting
+There are two standard models for dealing with persistence in a replicated system. One is to treat reboots just like any other form of failure. Since the system's goal is to survive as long as a majority of cohorts do not fail simultaneously, we do not need to keep any persistent state when viewing reboots as failures.
+
+The other model is to assume that any machine may reboot at any time, and that as long as it doesn't lose its disk, this doesn't count as a failure. Given three replicas in this model, if all three are power-cycled simultaneously and one loses a disk in the process, the system can continue working as soon as the other two machines reboot. We will design our protocol to use this second model. When we say that a cohort logs information, we mean it does a forced disk write to disk before proceeding. It is easy to convert our protocol to the reboot-as-failure model by making all disk writes asynchronous.
+
+### Normal-case operation
 We use the term *view* to denote a set of active cohorts with a designated primary. The system also assigns each view a unique *view-id*. view-ids increase monotonically each time the group's view changes.
 
 The primary cohort numbers all requests it receives in a given view with consecutive *timestamp* values, starting at 1. Timestamps specify the order in which cohorts must execute requests within a view. Since view numbers are monotonically increasing, the combination of view-id and timestamp, which we call a *viewstamp*, determines the execution order of all requests over time.

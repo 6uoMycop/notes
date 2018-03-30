@@ -1,0 +1,884 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252"><meta http-equiv="expires" content="0">
+
+</head><body link="#0000f0" text="#000000" vlink="#f00000" bgcolor="#ffffff">
+
+<h3>
+<hr>
+A simple Monte Carlo Methods: Compute Pi
+<hr>
+</h3>
+<ul>
+
+<p>
+</p><li> <font color="darkmagenta"><b>
+     Pseudo random number generator
+     </b></font>
+<p>
+</p><ul>
+<li> <b>Terminology:</b>
+<p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> <font color="red"><b>Pseudo random number generator</b></font> =
+      a <font color="blue"><b>device (method)</b></font>
+      that generate
+      <font color="red"><b>random numbers</b></font> taken from
+      some <font color="darkmagenta"><b>distribution of values</b></font>
+ </li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+</p><hr>
+<p>
+</p></li><li> <b>Commonly used <i>distribution</i> of values:</b>
+<p>
+</p><ul>
+<table bgcolor="lightcyan" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> <font color="red"><b>Uniform [<i>a</i>,<i>b</i>] distribution</b></font>
+<p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> <font color="blue"><b>Every value</b></font> between
+    <font color="red"><b><i>a</i></b></font> and
+    <font color="red"><b><i>b</i></b></font> is
+    generated with
+    <font color="darkmagenta"><b>equal probability (likelihood)</b></font>
+ </li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+</p><hr>
+<p>
+</p></li><li> <font color="red"><b>(Standard) Normal distribution</b></font>
+<p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> The <font color="blue"><b>value</b></font> are
+    <font color="red"><b>generated</b></font>
+  with the following distribution of
+    <font color="darkmagenta"><b>probability (likelihood)</b></font>
+<p>
+</p><ul>
+<table border="5">
+
+<tbody><tr> <td>
+<img src="compute-pi_files/normal-dist.gif">
+</td> </tr>
+
+</tbody></table>
+</ul>
+<p>
+
+ </p></li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+ </p></li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+</p></li></ul>
+<p>
+</p><hr>
+<hr>
+<p>
+</p></li><li> <font color="darkmagenta"><b>
+     The <font color="blue"><b><i>uniform [0,1)</i></b></font>
+     pseudo random number generator in the <tt>java.lang.Math</tt> class
+     </b></font>
+<p>
+</p><ul>
+<li> The  <font color="blue"><b>method <tt>random()</tt></b></font>
+     returns a
+     <font color="red"><b><i>uniform [0,1)</i></b></font>
+      pseudo random number
+  <p>
+   That means it can return any values between 0 and 1,
+   including 0. but <b>not</b> including 1.
+</p><p>
+</p><hr>
+<p>
+</p></li><li> <b>Example:</b> print <font color="red"><b>10 random numbers</b></font>
+    (between [0, 1))
+<p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+
+<font color="blue">
+<b>
+<pre>   public class Random1
+   {
+      public static void main(String[] args)
+      {
+   	 
+   	 for ( int i = 0 ; i &lt; 10; i++ )
+   	 {
+   	    System.out.println( <font color="red">Math.random()</font> );    // Print a random number     
+   	 }
+      }
+   }
+</pre>
+</b>
+</font>
+
+</td> </tr>
+</tbody></table>
+</ul>
+ <p>
+ </p><hr>
+ <p>
+ </p></li><li> <font color="#00a000"><b> Example Program: </b></font>
+      (Demo above code)
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+      <sub><sub><sub>
+        <img src="compute-pi_files/Example.jpg">
+        </sub></sub></sub>
+  <p>
+  </p><ul>
+  <li> Prog file:
+       <a href="http://www.mathcs.emory.edu/%7Echeung/Courses/170/Syllabus/07/Progs/Random1.java"> click here </a>
+  </li></ul>
+<p>
+ <b>How to run the program:</b>
+</p><p>
+</p><ul>
+<table bgcolor="#CCFFCC" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> <font color="blue"><b>Right click</b></font> on link and
+      <font color="red"><b>save</b></font> in a scratch directory
+ <p>
+ </p></li><li> To compile: 
+  &nbsp; <font color="red"><b><tt>javac Random1.java</tt></b></font>
+ </li><li> To run: 
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <font color="red"><b><tt>java Random1</tt></b></font>
+ </li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+
+</p></li></ul>
+
+
+<p>
+</p><hr>
+<hr>
+<p>
+</p><hr>
+<hr>
+<p>
+</p><hr>
+<hr>
+<p>
+</p></li><li> <font color="darkmagenta"><b>
+	Monte Carlo experiments
+	</b></font>
+<p>
+ </p><ul>
+ <li> <font color="red"><b>Monte Carlo experiments</b></font>
+	are <b>experiments</b> with a 
+     <font color="blue"><b>random outcome</b></font> with
+	a certain probability of success
+<p>
+<b>Example:</b> Monte Carlo experiment
+</p><p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> <font color="red"><b>Die roll</b></font> with 
+   <font color="blue"><b>outcome = 6</b></font>
+ <p>
+ </p></li><li> The <font color="blue"><b>probability</b></font> of this
+    <b>experiment</b> = <font color="red"><b>1/6</b></font>
+ </li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+</p><hr>
+  <p>
+ </p></li><li> If the <font color="blue"><b>probability of success</b></font>
+    of
+    the <b>Monte Carlo experiment</b>
+    is
+	<font color="red"><b> difficult to compute</b></font>,
+	 we can <b>obtain an <i>approximation</i></b>
+	 using the following
+	 procedure:
+<p>
+</p><ul>
+<table bgcolor="lightcyan" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li>  Performing the <b>Monte Carlo experiment</b>
+      for <font color="red"><b>many many many times</b></font>
+       and <font color="blue"><b>observe the
+	outcomes</b></font>.
+ <p>
+ </p></li><li> The  <font color="blue"><b>probability of success</b></font>
+      of the <b>Monte Carlo experiment</b> can be 
+      <font color="red"><b>approximated</b></font> by:
+<p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+
+<font color="blue">
+<b>
+<pre>	 # times that the <font color="red">outcome was succesful</font>
+	-----------------------------------------        
+	# times that the <font color="red">experiment was performed</font>
+</pre>
+</b>
+</font>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+ </p></li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+</p><hr>
+ <p>
+ </p></li><li> <b>Monte Carlo Method:</b>
+<p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> <font color="red"><b>Monte Carlo Method</b></font> =
+   a <font color="blue"><b>computer simulation</b></font>
+   that performs 
+    <b>Monto Carlo experiments</b>
+    aimed to compute the above
+    <font color="darkmagenta"><b>probability</b></font>
+ </li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+   </p><p>
+ </p></li><li> We will illustrate the
+    <font color="blue"><b>Monto Carlo Method</b></font>
+     with a simple experiment to find
+	<font color="red"><b>Pi</b></font>
+ <p>
+ </p></li></ul>
+<p>
+</p><hr>
+<hr>
+<p>
+</p><hr>
+<hr>
+<p>
+</p><hr>
+<hr>
+<p>
+</p></li><li> <font color="darkmagenta"><b>
+      A <i>Monte Carlo experiment</i>
+      to find an estimate for Pi
+        </b></font>
+<p>
+ </p><ul>
+ <li> <b>Problem:</b>
+<p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+<ul>
+ <li> <b>Assume</b> we have 
+    <font color="red"><b>no knowledge</b></font> of the value of 
+     <font color="blue"><b>&#960;</b></font> (= 3.1415926535...)
+  <br>
+	I.e., you <font color="red"><b>cannot</b></font>
+       your <font color="blue"><b>calculator</b></font>
+	or any other <font color="darkred"><b>information source</b></font>.
+ <p>
+
+ </p></li><li> Find an 
+    <font color="blue"><b>estimate</b></font>
+     for <font color="red"><b>&#960;</b></font>
+
+</li></ul></td> </tr>
+</tbody></table>
+</ul>
+<p>
+We will now <b>design</b> a
+  <font color="darkmagenta"><b>Monte Carlo experiment</b></font> that
+  can be <b>used</b> to find an
+  <font color="blue"><b>estimate</b></font>
+     for <font color="red"><b>&#960;</b></font>.
+</p><p>
+</p><hr>
+<hr>
+<p>
+ </p></li><li> Consider the following funny looking
+	<font color="red"><b>dart board</b></font>:
+<p>
+</p><ul>
+<table border="5">
+<tbody><tr> <td>
+<img src="compute-pi_files/circle1.gif">
+</td> </tr>
+</tbody></table>
+ <p>
+<b>Facts:</b>
+</p><p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> The dimension of the 
+	<font color="red"><b>dart board</b></font>
+	is <b>1 x 1</b>.
+ <p>
+ </p></li><li> A <font color="red"><b>quarter circle</b></font>
+	with <b>radius <i>r</i> = 1</b>
+	is inscribed in the board.
+ </li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+
+</p></ul>
+<p>
+</p><hr>
+<p>
+</p></li><li> The <b>Monte Carlo experiment</b>:
+<p>
+</p><ul>
+<table bgcolor="#CCFFCC" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> You <font color="blue"><b>throw darts</b></font> at this board
+	<font color="red"><b>blindfolded</b></font>
+ <p>
+   (we check only the darts that land on the board)
+ </p><p>
+  When you are <b>blindfolded</b>,
+	then the <font color="blue"><b>probability</b></font>
+     of a dart landing on <font color="red"><b>any position</b></font> 
+	inside the <b>1 x 1</b> quared board is 
+	<font color="darkred"><b><i>identical</i></b></font>)
+</p><p>
+ </p><hr>
+ <p>
+ </p></li><li> What is the <font color="blue"><b>probability</b></font> that
+      a <b>dart</b> hits the
+      <font color="red"><b>yellow portion</b></font> of the dart board ???
+ </li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+</p><hr>
+<hr>
+  <p>
+</p></li><li> Computing
+  the <font color="blue"><b>probability</b></font> that
+      a <b>dart</b> hits the
+      <font color="red"><b>yellow portion</b></font> of the dart board:
+<p>
+</p><ul>
+<table bgcolor="lightcyan" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> <b>Fact</b> from the <font color="red"><b>construction</b></font> of the
+     <font color="blue"><b>dart board</b></font>:
+<p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+
+<font color="blue">
+<b>
+<pre>	                                      Area of the <font color="red">quarter circle</font>
+   Probability [ <font color="red">dart hits yellow portion</font> ] = --------------------------      
+	                                       Area of the <font color="red">1 x 1 square</font>
+
+                                            = Area of the <font color="red">quarter circle</font>
+</pre>
+</b>
+</font>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+(Because the <b>area</b> of the 
+   <font color="red"><b>1 x 1 square</b></font>
+   is equal to <font color="blue"><b>1</b></font>).
+ </p></li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+
+ </p></li><li> The <b>area</b> of the <font color="red"><b>quarter circle</b></font>
+	can be <b>computed</b> as follows:
+<p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+
+ <ul>
+<table border="5">
+<tbody><tr> <td>
+<img src="compute-pi_files/circle.gif">
+</td> </tr>
+</tbody></table>
+ <p>
+ </p><li> The <font color="blue"><b>area</b></font>
+   of the <font color="red"><b>full circle</b></font>
+     = <b>&#960;</b> × 1 <sup>2</sup> 
+	= <b>&#960;</b>
+ </li><li> The <font color="blue"><b>area</b></font>
+   of the <font color="red"><b>quarter circle</b></font> = <b>&#960;</b> / 4
+ </li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+</p><hr>
+<hr>
+<p>
+ </p></li><li> Therefore:
+<p>
+</p><ul>
+<table bgcolor="lightcyan" border="5">
+<tbody><tr> <td>
+
+<font color="blue">
+<b>
+<pre>
+   Probability [ <font color="red">dart hits yellow portion</font> ] = Area of the <font color="red">quarter circle</font>     
+
+                                            = &#960;/4
+</pre>
+</b>
+</font>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+ </p></li></ul>
+
+<p>
+</p><hr>
+<hr>
+<p>
+</p></li><li> <font color="darkmagenta"><b>
+      Finding an estimate for Pi using a <i>Monte Carlo Method</i>
+        </b></font>
+<p>
+ </p><ul>
+ <li> The <b>above description</b> give rise to a
+	<font color="red"><b>Monte Carlo experiment</b></font>
+	that we can use to estimate <b>&#960;</b>.
+  <p>
+</p><ul>
+<table border="5">
+<tbody><tr> <td>
+<img src="compute-pi_files/circle1.gif">
+</td> </tr>
+</tbody></table>
+</ul>
+ <p>
+
+ </p></li><li> Recall
+   <font color="red"><b>Monte Carlo experiment</b></font>:
+<p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> An <b> experiment</b>
+    (= throwing darts) with a 
+   <font color="blue"><b>random outcome</b></font>
+	with a certain probability of
+   <font color="red"><b> success</b></font> 
+	(= darts land <b>inside the quarter cicle</b>
+	with <font color="red"><b>probability = &#960;/4</b></font>)
+ </li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+We can use a <font color="blue"><b>Monte Carlo Method (simulating
+   throwing darts)</b></font> to
+  <b><i>estimate</i></b> this
+  <font color="red"><b>probability of success</b></font> !
+ </p><p>
+</p><hr>
+<hr>
+ <p>
+ </p></li><li> <b>Monte Carlo Simulation (throwing darts):</b>
+<p>
+</p><ul>
+<table bgcolor="lightcyan" border="5">
+<tbody><tr>
+<td>
+<b> <font color="blue">
+<pre>
+   int i;							   
+   int nThrows = 0;					   
+   int nSuccess = 0;					   
+ <font color="darkred">
+   /* ==============================
+      Throw a large number of darts
+      ============================== */	</font>				     
+   for (i = 0; i &lt; aLargeNumber; i++)			   
+   {<font color="red">					   
+      "Throw a dart";</font>				   
+      nThrows++;						   
+  							     
+      if ( "<font color="red">dart lands inside quarter circle" </font>)   
+  	 nSuccess++;					   
+   }							   
+ <font color="darkred">
+   /* =================================================================
+      Estimate the probability of a dart landing inside quarter circle
+      ================================================================== */</font>
+   System.out.println("Pi/4 = " + <font color="red">(double)nSuccess/(double)nThrows</font> );
+</pre>
+</font> </b>
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+</p><hr>
+<hr>
+<p>
+
+ </p></li><li> <b>Simulating a dart throw:</b>
+<p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> A <font color="blue"><b>computer program</b></font> 
+    can <font color="red"><b>never</b></font> throw a <b>real dart</b>
+ <p>
+ </p></li><li> A <font color="blue"><b>simulation</b></font>
+   will <font color="red"><b><i>only</i> consider</b></font>
+   the <font color="darkmagenta"><b><i>result</i> of a dart throw</b></font>
+ <p>
+ </p></li><li> <b>Result of a dart throw:</b>
+<p>
+</p><ul>
+<table bgcolor="#CFFCC" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> The <b>dart</b> lands in some
+     <font color="red"><b>coordinate (<i>x</i>, <i>y</i>)</b></font>
+     where
+     <font color="blue"><b><i>x</i></b></font> and
+     <font color="blue"><b><i>x</i></b></font>
+      are
+     <font color="darkmagenta"><b>uniform [0..1)</b></font> distributed
+  <p>
+  (I.e., any point inside the
+   <font color="red"><b>1 x 1 square</b></font> will be
+     <b>equally likely</b> to be <font color="blue"><b>"hit"</b></font>)
+ </p></li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+</p><hr>
+<p>
+</p></li><li> <b><i>Simulating</i></b> a <font color="blue"><b>dart throw</b></font>:
+<p>
+</p><ul>
+<table bgcolor="lightcyan" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> <font color="red"><b><tt>x = Math.random()</tt></b></font>
+ </li><li> <font color="red"><b><tt>y = Math.random()</tt></b></font>
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ </li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+ </p></li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+</p><hr>
+<hr>
+<p>
+
+ </p></li><li> <b><i>Checking</i></b> whether a dart landed
+        the <font color="red"><b><i>inside</i>
+	
+	the quarter cicle</b></font>:
+ <p>
+</p><p>
+</p><ul>
+<table bgcolor="lightcyan" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> A point
+    <font color="red"><b><tt>(x,y)</tt></b></font> 
+    <font color="blue"><b><i>inside</i></b></font> the
+   <b>quarter circle</b> will satisfy the following
+   <font color="red"><b>inequality</b></font>:
+<p>
+</p><ul>
+<table border="5">
+
+<tbody><tr> <td>
+<img src="compute-pi_files/circle1.gif">
+</td> </tr>
+
+</tbody></table>
+</ul>
+<p>
+
+</p><p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr> <td>
+
+<font color="blue">
+<b>
+<pre>    x<sup>2</sup> + y<sup>2</sup> &#8804; 1<sup>2</sup>    (Equation of a circle)     
+</pre>
+</b>
+</font>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+ </p></li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+ </p><p>
+</p><hr>
+<hr>
+ <p>
+ </p></li><li> <b>Java program</b> of the
+   <font color="blue"><b>Monte Carlo Simulation</b></font>:
+<p>
+</p><ul>
+<table bgcolor="lightyellow" border="5">
+<tbody><tr>
+<td>
+<b> <font color="blue">
+<pre>   public class ComputePi1
+   {
+      public static void main(String[] args)
+      {
+   	 int i;                                                               
+   	 int nThrows = 0;                                             
+   	 int nSuccess = 0;                                            
+   									
+   	 double x, y;                                                 
+   									
+   	 for (i = 0; i &lt; 1000000 ; i++)                         
+   	 {   <font color="red">                                                         
+   	    x = Math.random();      // Throw a dart                   
+   	    y = Math.random(); </font>                                               
+   	<font color="darkred">								
+   	    nThrows++;    </font>                                                    
+   									
+   	    if ( <font color="red">x*x + y*y &lt;= 1</font> )             
+   	       <font color="darkmagenta">nSuccess++;</font>                                               
+   	 }                                                            
+   									
+   	 System.out.println("Pi/4 = " + <font color="red">(double)nSuccess/(double)nThrows</font> );
+   	 System.out.println("Pi = " + 4*(double)nSuccess/(double)nThrows );
+      }
+   }
+</pre>
+</font> </b>
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+<b>Output:</b>
+</p><p>
+</p><ul>
+<table bgcolor="lightcyan" border="5">
+<tbody><tr> <td>
+
+<font color="blue">
+<b>
+<pre>   Pi/4 = 0.785784                  
+   <font color="red">Pi = 3.143136</font>
+</pre>
+</b>
+</font>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+ </p><p>
+ </p><hr>
+ <p>
+ </p></li><li> <font color="#00a000"><b> Example Program: </b></font>
+      (Demo above code)
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+      <sub><sub><sub>
+        <img src="compute-pi_files/Example.jpg">
+        </sub></sub></sub>
+  <p>
+  </p><ul>
+  <li> Prog file:
+       <a href="http://www.mathcs.emory.edu/%7Echeung/Courses/170/Syllabus/07/Progs/ComputePi1.java"> click here </a>
+  </li></ul>
+<p>
+ <b>How to run the program:</b>
+</p><p>
+</p><ul>
+<table bgcolor="#CCFFCC" border="5">
+<tbody><tr> <td>
+
+ <ul>
+ <li> <font color="blue"><b>Right click</b></font> on link and
+      <font color="red"><b>save</b></font> in a scratch directory
+ <p>
+ </p></li><li> To compile: 
+  &nbsp; <font color="red"><b><tt>javac ComputePi1.java</tt></b></font>
+ </li><li> To run: 
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <font color="red"><b><tt>java ComputePi1</tt></b></font>
+ </li></ul>
+
+</td> </tr>
+</tbody></table>
+</ul>
+<p>
+
+
+ </p></li></ul>
+<p>
+</p><hr>
+<hr>
+<p>
+</p><hr>
+<hr><p>
+</p><hr>
+<hr>
+<p>
+</p></li><li> <font color="darkmagenta"><b>
+     More interesting Monte Carlo simulations
+        </b></font>
+<p>
+ </p><ul>
+ <li> In the 1960's, Edward Thorp wrote and published the book
+	<font color="red"><b>"Beat the Dealer"</b></font>
+     on <font color="blue"><b>Black Jack</b></font>:
+	<a href="http://www.wikipedia.org/wiki/Edward_O._Thorp"> click here</a>
+ <p>
+</p><p>
+</p><ul>
+<table border="5">
+
+<tbody><tr> <td>
+<img src="compute-pi_files/Beat_the_Dealer_by_Ed_Thorp.jpg">
+</td> </tr>
+
+</tbody></table>
+</ul>
+<p>
+
+ </p></li><li> The book presents a system of card counting and how to
+	play Black Jack
+ <p>
+ </p></li><li> Many people have written computer programs
+	that simulate a Black Jack games (among them was me :-))
+ <p>
+ </p></li><li> The simulations show that Thorpe system does work - you
+	can win at Black jack with his system by counting cards.
+ <p>
+ </p></li><li> As a result, casinos in Las Vegas impose measures to
+	throw out people that count cards...
+ </li></ul>
+
+</li></ul>
+<p>
+</p><hr>
+<hr>
+<hr>
+<hr>
+<hr>
+<hr>
+</body></html>

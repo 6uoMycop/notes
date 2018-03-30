@@ -1,3 +1,132 @@
+## PROCESS CREATION AND PROGRAM EXECUTION IN MORE DETAIL
+### The *clone()* System Call
+Like *fork()* and *vfork()*, the Linux-specific *clone()* system call creates a new process. It differs from the other two calls in allowing finer control over the steps that occur during process creation. The main use of *clone()* is in the implementation of threading libraries.
+
+Unlike *fork()*, the cloned child doesn't continue from the point of the call, but instead commences by calling the function specified in the *func* argument; we'll refer to this as the *child function*. When called, the child function is passed the value specified in *func_arg*. Using appropriate casting, the child function can freely interpret this argument; for example, as an *int* or as a pointer to a structure. (Interpreting it as a pointer is possible because the cloned child either obtains a copy or shares the calling process's memory.)
+
+The cloned child process terminates either when *func* returns (in which case its return value is the exit status of the process) or when the process makes a call to *exit()* (or *_exit()*). The parent process can wait for the cloned child in the usual manner using *wait()* or similar.
+
+Since a cloned child may (like *vfork()*) share the parent's memory, it can't use the parent's stack. Instead, the caller must allocate a suitably sized block of memory for use as the child's stack and pass a pointer to that block in the argument *child_stack*. On most hardware architectures, the stack grows downward, so the *child_stack* argument should point to the high end of the allocated block.
+
+The *clone() flags* argument serves two purposes. First, its lower byte specifies the child's *termination signal*, which is the signal to be sent to the parent when the child terminates.
+
+The remaining bytes of the *flags* argument hold a bit mask that controls the operation of *clone()*. We summarize these bit-mask values in Table 28-2, and describe them in more detail in Section 28.2.1.
+
+**Example program**
+
+Listing 28-3 shows a simple example of the use of *clone()* to create a child process. The main program does the following:
+- Open a file descriptor (for `/dev/null`) that will be closed by the child.
+- Set the value for the *clone() flags* argument to `CLONE_FILES` if a command-line argument was supplied, so that the parent and child will share a single file descriptor table. If no command-line argument was supplied, *flags* is set to 0.
+- Allocate a stack for use by the child.
+- If `CHILD_SIG` is nonzero and it not equal to `SIGCHILD`, ignore it, in case it is a signal that would terminate the process. We don't ignore `SIGCHLD`, because doing so would prevent waiting on the child to collect its status.
+- Call *clone()* to create the child. The third (bit-mask) argument includes the termination signal. The fourth argument (*func_arg*) specifies the file descriptor opened earlier.
+- Wait for the child to terminate.
+- Check whether the file descriptor is still open by trying to *write()* to it. The program reports whether the *write()* succeeds or fails.
+
+Execution of the cloned child begins in *childFunc()*, which receives (in the argument *arg*) the file descriptor opened by the main program. The child closes this file descriptor and then terminates by performing a `return`.
+
+```C
+#define _GNU_SOURCE
+#include <signal.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <sched.h>
+#include "tlpi_hdr.h"
+
+#ifndef CHILD_SIG
+#define CHILD_SIG SIGUSR1       /* Signal to be generated on termination of cloned child */
+
+#endif
+
+static int
+childFunc(void *arg)            /* Startup function for cloned child */
+{
+	if (close(*((int*) arg)) == -1)
+		errExit("close");
+
+	return 0;                       /* Child terminates now */
+}
+
+int
+main(int argc, char *argv[])
+{
+	const int STACK_SIZE = 65536;   /* Stack size for cloned child */
+	char *stack;                    /* Start of stack buffer */
+	char *stackTop;                 /* End of stack buffer */
+	int s, fd, flags;
+
+	fd = open("/dev/null", O_RDWR); /* Child will close this fd */
+	if (fd == - 1)
+		errExit("open");
+
+	/* If argc > 1, child shares file descriptor table with parent */
+
+	flags = (argc > 1) ? CLONE_FILES : 0;
+
+	/* Allocate stack for child */
+
+	stack = malloc(STACK_SIZE);
+	if (stack == NULL)
+		errExit("malloc");
+	stackTop = stack + STACK_SIZE; /* Assume stack grows downward */
+
+	/* Ignore CHILD_SIG, in case it is a signal whose default is to
+	   terminate the process; but don't ignore SIGCHLD (which is ignored
+	   by default), since that would prevent the creation of a zombie. */
+
+	if (CHILD_SIG != 0 && CHILD_SIG != SIGCHLD)
+		if (signal(CHILD_SIG, SIG_IGN) == SIG_ERR)
+			errExit("signal");
+
+	/* Create child; child commences execution in childFunc() */
+
+	if (clone(childFunc, stackTop, flags | CHILD_SIG, (void *) &fd) == -1)
+		errExit("clone");
+
+	/* Parent falls through to here. Wait for child; __WCLONE is
+	   needed for child notifying with signal other than SIGCHLD. */
+
+	if (waitpid(-1, NULL, (CHILD_SIG != SIGCHLD) ? __WCLONE : 0) == -1)
+		errExit("waitpid");
+	printf("child has terminated\n");
+
+	/* Did close() of file descriptor in child affect parent? */
+
+	s = write(fd, "x", 1);
+	if (s == -1 && errno == EBADF)
+		printf("file descriptor %d has been closed\n", fd);
+	else if (s == -1)
+		printf("write() on file descriptor %d failed "
+			    "unexpectedly (%s)\n", fd, strerror(errno));
+	else
+		printf("write() on file descriptor %d succeeded\n", fd);
+
+	exit(EXIT_SUCCESS);
+}
+```
+
+#### The *clone() flags* Argument
+The *clone() flags* argument is a combination (ORing) of the bit-mask values described in the following pages.
+
+**Sharing file descriptor tables: CLONE_FILES**
+
+If the `CLONE_FILES` flag is specified, the parent and the child share the same table of file descriptors. This means that file descriptor allocation or deallocation (*open()*, *close()*, *dup()*, *pipe()*, *socket()*, and so on) in either process will be visible in the other process.
+
+The specification of POSIX threads requires that all of the threads in a process share the same open file descriptors.
+
+**Sharing the parent's virtual memory: CLONE_VM**
+
+If the flag `CLONE_VM` flag is set, then the process and child share the same virtual memory pages (as with *vfork()*). Updates to memory or calls to *mmap()* or *munmap()* by either process will be visible to other process. If the `CLONE_VM` flag is not set, then the child receives a copy of the parent's virtual memory (as with *vfork()*).
+
+Sharing the same virtual memory is one of the defining attributes of threads, and is required by POSIX threads.
+
+**Use of *clone() flags***
+
+The LinuxThreads threading implementation uses *clone()* (with just the first four arguments) to create threads by specifying *flags* as follows:
+```
+CLONE_FILES | CLONE_VM | CLONE_FS | CLONE_SIGHAND
+```
+
 ## PIPES AND FIFOS
 ### Overview
 **A pipe is a byte stream**
