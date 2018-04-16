@@ -206,6 +206,10 @@ bin/spark-class org.apache.spark.deploy.worker.Worker spark://masternode:7077
 ```
 (where `masternode` is the hostname of your master).
 
+**High availability**
+
+When running in production settings, you will want your Standalone cluster to be available to accept applications even if individual nodes in your cluster go down. Out of the box, the Standalone mode will gracefully support the failure of worker nodes. If you also want the master of the cluster to be high available, Spark supports using Apache ZooKeeper (a distributed coordination system) to keep multiple standby masters and switch to a new one when any of them fails.
+
 ## Tunning and Debugging Spark
 
 ### Components of Execution: Jobs, Tasks, and Stages
