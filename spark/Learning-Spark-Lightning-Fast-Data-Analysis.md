@@ -100,6 +100,63 @@ Example 3-33. reduce() in Scala
 val sum = rdd.reduce((x, y) => x + y)
 ```
 
+## Advanced Spark Programming
+### Broadcast Variables
+As an example, say that we wanted to write a Spark program that looks up countries by their call signs by prefix matching in an array. This is useful for ham radio call signs since each country gets its own prefix, although the prefixes are not uniform in length. If we wrote this natively in Spark, the code might look like Example 6-6.
+```Python
+# Look up the locations of the call signs on the
+# RDD contactCounts. We load a list of call sign
+# prefixes to country code to support this lookup.
+signPrefixes = loadCallSignTable()
+
+def processSignCount(sign_count, signPrefixes):
+    country = lookupCountry(sign_count[0], signPrefixes)
+    count = sign_count[1]
+    return (country, count)
+
+countryContactCounts = (contactCounts
+                        .map(processSignCount)
+                        .reduceByKey((lambda x, y: x + y)))
+```
+This program would run, but if we had a larger table (say, with IP addresses instead of call signs), the `signPrefixes` could easily be several megabytes in size, making it expensive to send that `Array` from the master alongside each task. In addition, if we used the same `signPrefixes` object later (maybe we next we ran the same code on *file2.txt*), it would be sent *again* to each node.
+
+We can fix this by making `signPrefixes` a broadcast variable.
+
+Using broadcast variables, our previous example looks like Example 6-7 through 6-9.
+```Python
+# Look up the locations of the call signs on the
+# RDD contactCounts. We load a list of call sign
+# prefixes to country code to support this lookup.
+signPrefixes = sc.broadcast(loadCallSignTable())
+
+def processSignCount(sign_count, signPrefixes):
+    country = lookupCountry(sign_count[0], signPrefixes.value)
+    count = sign_count[1]
+    return (country, count)
+
+countryContactCounts = (contactCounts
+                        .map(processSignCount)
+                        .reduceByKey((lambda x, y: x + y)))
+
+countryContactCounts.saveAsTextFile(outputDir + "/countries.txt")
+```
+
+```Scala
+# Look up the locations of the call signs on the
+# RDD contactCounts. We load a list of call sign
+# prefixes to country code to support this lookup.
+val signPrefixes = sc.broadcast(loadCallSignTable())
+val countryContactCounts = contactCounts.map{case (sign, count) =>
+  val country = lookupInArray(sign, signPrefixes.value)
+  (country, count)
+}.reduceByKey((x, y) => x + y)
+countryContactCounts.saveAsTextFile(outputDir + "/countries.txt")
+```
+As shown in these examples, the process of using broadcast variable is simple:
+1. Create a `Broadcast[T]` by calling `SparkContext.broadcast` on an object of type `T`. Any type works as long as it is also `Serializable`.
+2. Access its value with the `value` property (or `value()` method in Java).
+3. The variable will be sent to each node only once, and should be treated as read-only (updates will *not* be propagated to other nodes).
+
 ## Running on a Cluster
 ### Spark Runtime Architecture
 Before we dive into the specifics of running Spark on a cluster, it's helpful to understand the architecture of Spark in a distributed mode (illustrated in Figure 7-1).
