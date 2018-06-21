@@ -29,6 +29,19 @@ Each block in the bitcoin blockchain contains a summary of all the transactions 
 A merkle tree constructed by recursively hashing pairs of nodes until there is only one hash, called the *root*, or *merkle root*.
 
 The merkle tree is constructed bottom-up. In the following example, we start with four transactions, A, B, C, and D, which form the *leaves* of the merkle tree, as shown in Figure 9-2. The transactions are not stored in the merkle tree; rather, their data is hashed and the resulting hash is stored in each node as H<sub>A</sub>, H<sub>B</sub>, H<sub>C</sub>, and H<sub>D</sub>.
+
+## How Bitcoin Works
+### Constructing a Transaction
+#### Getting the Right Inputs
+Alice's wallt application will first have to find inputs that can pay for the amount she wants to send to Bob. Most wallets keep track of all the available outputs belonging to addresses in the wallet. Therefore, Alice's wallet would contain a copy of the transaction output from Joe's transaction, which was created in exchange for case (see "Getting Your First Bitcoin" on page 10). A bitcoin wallet application that runs as a full-node client actually contains a copy of every unspent output from every transaction in the blockchain.
+
+If the wallet application does not maintain a copy of unspent transaction outputs, it can query the bitcoin network to retrieve this information using a variety of APIs available by different providers or by asking a full-node using an application programming interface (API) call.
+
+### Mining Transactions in Blocks
+New transactions are constantly flowing into the network from user wallets and other applications. As these are seen by the bitcoin network nodes, they get added to a temporary pool of unverified transactions maintained by each node. As miners construct a new block, they add unverified transactions from this pool to the new block and then attempt to prove the validity of that new block, with the mining algorithm (Proof-of-Work). The process of mining is explained in detail in Chapter 10.
+
+Transactions are added to the new block, prioritized by the highest-fee transactions first and a few other criteria. Each miner starts the process of mining a new block of transactions as soon as he receives the previous block from the network, knowing he has lost that previous round of competition. He immediately creates a new block, fills it with transactions and the fingerprint of the previous block, and starts calculating the Proof-of-Work for the new block.
+
 ## Keys, Addresses
 ### Introduction
 #### Public Key Cryptography and Cryptocurrency
@@ -62,6 +75,19 @@ Bitcoin miners also earn fees from transactions. Every transaction may include a
 In the previous chapter we looked at the blockchain, the global public ledger (list) of all transactions, which everyone in the bitcoin network accepts as the authoritative record of ownership.
 
 But how can everyone in the network agree on a single universal "truth" about who owns what, without having to trust anyone? All additional payment systems depend on a trust model that has a central authority providing a clearhousing service, basically verifying and clearing all transactions. Bitcoin has no central authority, yet somehow every node has a complete copy of a public ledger that it can trust as the authoritative record. The blockchain is not created by a central authority,but is assembled independently by every node in the network. Somehow, every node in the network, acting on information transmitted across insecure network connections, can arrive at the same conclusion and assemble a copy of the same public ledger as every one else. This chapter examines the process by which the bitcoin network achieves global consensus without central authority.
+
+### Aggregating Transactions into Blocks
+After validating transactions, a bitcoin node will add them to the *memory pool*, or *transaction pool*, where transactions await until they can be included (mined) into a block. Jing's node collects, validates, and relays new transactions just like any other node. Unlike other nodes, however, Jing's node will then aggregate these transactions into a *candidate block*.
+
+Let's follow the blocks that were created during the time Alice bought a cup of coffee from Bob's Cafe (see "Buying a Cup of Coffee" on page 16). Alice's transaction was included in block 277316. For the purpose of demonstrating the concepts in this chapter, let's assume that block was mined by Jing's mining system and follows Alice's transaction as it becomes part of this new block.
+
+Jing's mining node maintains a local copy of the blockchain. By the time Alice buys the cup of coffee, Jing's node has assembled a chain up to block 277314. Jing's node is listening for transactions, trying to mine a new block and also listening for blocks discovered by other nodes. As Jing's node is mining, it receives block 277315 through the bitcoin network. The arrival of this block signifies the end of the competition for block 277315 and the beginning of the competition to create block 277316.
+
+During the previous 10 minutes, while Jing's node was searching for a solution to block 277315, it was also collecting transactions in preparation for the next block. By now it has collected a few hundred transactions in the memory pool. Upon receiving block 277315 and validating it, Jing's node will also compare it against all the transactions in the memory pool and remove any that were included in block 277315. Whatever transactions remain in the memory pool are unconfirmed and waiting to be recorded in a new block.
+
+Jing's node immediately constructs a new empty block, a candidate for block 277316. This block is called a *candidate block* because it is not yet a valid block, as it does not contain a valid Proof-of-Work. The block becomes valid only if the miner succeeds in finding a solution to the Proof-of-Work algorithm.
+
+When Jing's node aggregates all the transactions from the memory pool, the new candidate block has 418 transactions with total transaction fees of 0.09094928 bitcoin.
 
 ### Assembling and Selecting Chains of Blocks
 #### Blockchain Forks

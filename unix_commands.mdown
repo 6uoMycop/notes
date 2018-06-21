@@ -77,37 +77,6 @@ axel [OPTIONS] url1 [url2] [url...]
 #### DESCRIPTION
 Axel is a program that downloads a file from a FTP or HTTP server through multiple connection, each connection downloads its own part of the file.
 
-### pssh
-#### SYNOPSIS
-```
-pssh [-vi] [-h hosts_file] [-p par] [-t timeout] command ...
-```
-#### DESCRIPTION
-pssh is a program for executing ssh in parallel on a number of hosts.
-#### OPTIONS
-```
--h host_file
-       Read hosts from the given host_file.
-       Lines in the host file are of the form [user@]host[:port].
-
--p parallelism
-       Use the given number as the maximum number of concurrent connections.
-
--t timeout
-       Make connections time out after the given number of seconds.
-
--i
-       Display standard output and standard error as each host completes.
-
--v
-       Include error messages from ssh with the -i and \ options.
-```
-#### EXAMPLE
-Print "hello, world" from each host specified in the file hosts.txt:
-```
-pssh -i -h hosts.txt echo "hello, world"
-```
-
 ### dpkg-query
 #### SYNOPSIS
 ```
