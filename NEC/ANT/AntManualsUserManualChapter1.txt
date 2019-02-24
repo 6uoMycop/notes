@@ -1,0 +1,7 @@
+=== 1. Overview ===
+
+ANT, the Advanced Network Testbed, is a flexible and configurable network testbed. ANT currently consists of about 50 netbooted computer nodes that allow for experimental network topologies. Each of these nodes has a management interface as well as at least one experimental one. The management interface is used to netboot the node, back up any experiment trace data, and to control the actual experiments. The experimental interfaces are all plugged into OpenFlow switches. Further, each node is plugged into a power switch and a terminal server, allowing for experimentation without ever having to physically be in the room that the hardware is in.
+
+All of software used to control ANT and its hardware resides on ANT's server, called queen (full DNS name: queen.nlehd.de). The software is controlled by one main script called am (am stands for ANT manager). Before you can do anything on ANT, you will need an account on its main server so that you can have connectivity to the rest of the ANT hardware; please email Felipe Huici ({{{felipe.huici@neclab.eu}}}), Simon Kuenzer ({{{simon.kuenzer@neclab.eu}}}) or Mohadmed Ahmed ({{{mohamed.ahmed@neclab.eu}}}) to have this account set up.
+
+Once you have an account, should you ever have problems or would like to contact other users of the testbed you can send email to {{{ant-users@listserv.netlab.nec.de}}}

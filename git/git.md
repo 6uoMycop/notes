@@ -185,6 +185,39 @@ After `cherry-pick`, the graph resembles Figure 10-5.
 
 In Figure 10-5, commit `F'` is substantially similar to commit `F`, but it is a new commit and will have to be adjusted - perhaps with conflict resolutions - to account for its application to commit `Z` rather commit `E`. None of the commits following `F` are applied after `F'`; only the named commit is picked and applied.
 
+### Rebasing Commits
+A common use for `git rebase` is to keep a series of commits that you are developing
+up-to-date with respect to another branch, usually a `master` branch or a tracking branch
+from another repository.
+
+In Figure 10-12, two branches have been developed. Originally, the `topic` branch
+started on the `master` branch when it was at commit `B`. In the meantime, it has pro-
+gressed to commit `E`.
+
+You can keep your commit series up-to-date with respect to the `master` branch by writing the commits so that they are based on commit `E` rather than `B`. Because the `topic` branch needs to be the current branch, you can use either:
+```
+$ git checkout topic
+$ git rebase master
+```
+or
+```
+$ git rebase master topic
+```
+After the rebase operation is complete, the new commit graph resembles Figure 10-13.
+
+The rebase operation relocates commits one at a time from each respective original commit location to a new commit base. As a result, each commit that is moved might have conflicts to resolve.
+
+> To see the beginning of the merge conflict in your file, search the file for the conflict marker `<<<<<<<`. When you open the file in your text editor, you'll see the changes from the HEAD or base branch after the line `<<<<<<< HEAD`. Next, you'll see `=======`, which divides your changes from the changes in the other branch, followed by `>>>>>>> BRANCH-NAME`. In this example, one person wrote "open an issue" in the base or HEAD branch and another person wrote "ask your question in IRC" in the compare branch or `branch-a`.
+>
+> ```
+> If you have questions, please
+> <<<<<<< HEAD
+> open an issue
+> =======
+> ask your question in IRC.
+> >>>>>>> branch-a
+> ```
+
 ## Remote Repositories
 ### Repository Concepts
 #### Repository Clones

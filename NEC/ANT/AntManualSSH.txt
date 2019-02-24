@@ -1,0 +1,101 @@
+= Access ANT from Linux =
+[[PageOutline(2-5,Contents,pullout)]]
+
+== Generate SSH key-pair ==
+If you do not have generated a private-public key pair, you can do so bby typing the following command to your terminal:
+{{{
+ssh-keygen
+}}}
+It will most likely generate an RSA key in your home folder (`~/.ssh/`). The content of `~/.ssh/id_rsa.pub` is the
+public key that we ask you to mail us when we create an ANT account for you.
+
+== Tunnelling   ==
+
+Alternatively you can create a transparent ssh tunnel and use queen to proxy connections.  This tunnel can then be used to proxy all traffic or selected portions through queen.  
+For example, in combination with browser proxy plugins such as chrome's proxy-switchysharp or firefox foxy-proxy, you can direct only requests for *.ant-net to queen. 
+
+'''Note''' that this is more efficient than the `sshuttle` method described below, and is the '''preferred''' method.
+
+
+
+''Hint:'' In order to work also within the testbed properly, please set the following ~/.ssh/config (permissions: 644) on your machine:
+
+{{{
+NoHostAuthenticationForLocalhost yes
+ForwardAgent yes
+
+Host queen
+	User <YOUR USERNAME ON QUEEN>
+	Port 22
+	HostName queen.nlehd.de
+	ForwardX11 yes
+
+Host queen-tunnel
+	User <YOUR USERNAME ON QUEEN>
+	Port 22
+	HostName queen.nlehd.de
+	LocalForward 8000 localhost:8123
+	RequestTTY no
+	ExitOnForwardFailure yes
+	ControlMaster auto
+	ControlPath ~/.ssh/cm_sockets/%r@%h:%p
+	Compression yes
+	CompressionLevel 6
+	KeepAlive yes
+	Stricthostkeychecking no
+
+Host repos repos.ant-net
+	ProxyCommand ssh queen nc -q0 %h %p
+
+Host c??? uc???
+	User root
+	ForwardX11 yes
+	StrictHostKeyChecking no
+	UserKnownHostsFile=/dev/null
+	ProxyCommand ssh queen nc -q0 %h %p
+}}}
+
+Now create the necessary configs 
+{{{
+mkdir ~/.ssh/cm_sockets
+}}}
+
+Add the following tunnel aliases to your shell  (e.g.  `~/.bash_aliases` or `~/.bashrc` ) 
+{{{
+# start a tunnel 
+alias qtunnel='ssh -f -N queen-tunnel && echo "Connected."'
+
+# check if tunnel is up 
+alias qtunnelc='ssh -O check queen-tunnel '
+
+# disconnect tunnel 
+alias qtunnelx='ssh -O exit queen-tunnel && echo "Disconnected."'
+
+}}}
+
+
+
+=== Example usage: ===
+ 
+Config browser to forward  connection to *.ant-net to queen.  With chrome, we use
+[https://chrome.google.com/webstore/detail/proxy-switchysharp/dpplabbmogkhghncfbfdeeokoefdjegm?hl=en  SwitchySharp]. 
+Be sure to start your tunnel, before connecting to ant machines, and if nothing is working, check your tunnel is up `qtunnelc`.
+
+{{{
+mahmed@ria:~ $ qtunnel
+Connected.
+
+mahmed@ria:~ $ qtunnelc
+Master running (pid=17878)
+
+mahmed@ria:~ $ qtunnelx
+Exit request sent.
+Disconnected.
+mahmed@ria:~ $
+}}}
+
+
+
+[[Image(set-ant.png)]] 
+[[Image(set-pattern.png)]] 
+[[Image(set-auto.png)]] 
