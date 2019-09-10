@@ -19,8 +19,7 @@ you can see that A finished at 10, B at 20, and C at 30. Thus,the average turnar
 
 let's do an example to show how jobs of different lengths can lead to trouble for FIFO scheduling. In particular, let's again assume three jobs (A, B, and C), but this time A runs for 100 seconds while B and C run for 10 each.
 
-As you can see, Job A runs first for the full 100 seconds before B or C even get a chance to run. Thus, the average turnaround
-time for the system is high: a painful 110 seconds ((100+110+120 / 3) = 110).
+As you can see, Job A runs first for the full 100 seconds before B or C even get a chance to run. Thus, the average turnaround time for the system is high: a painful 110 seconds ((100+110+120 / 3) = 110).
 
 ## Shortest Job First (SJF)
 This new scheduling discipline is known as **Shortest Job First (SJF)**, and the name should be easy to remember because it describes the policy quite completely: it runs the shortest job first, then the next shortest, and so on.
